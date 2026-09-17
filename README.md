@@ -10,7 +10,7 @@ scored without registering; no central arbiter — anyone can attest; right
 to leave — delete your profile and take your data any time; disputes are
 public and challengeable with counter-evidence. See DESIGN.md §2–§3.
 
-**Phase 1 scaffold. Not deployed — local only.**
+**Phase 1 scaffold. Deploys on Render via auto-deploy from GitHub main.**
 
 ## Quickstart
 
@@ -19,7 +19,19 @@ cd ~/workspace/trustline
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 .venv/bin/python seed.py     # bootstrap example data (origin="seed")
-.venv/bin/python server.py   # serves on 127.0.0.1:8741
+.venv/bin/python server.py   # serves on :8741 (PORT env on Render)
+```
+
+Seed a live instance instead of local SQLite:
+
+```bash
+.venv/bin/python seed.py --remote https://<your-render-service>.onrender.com
+```
+
+Run the smoke tests (stdlib only):
+
+```bash
+.venv/bin/python smoke_test.py
 ```
 
 Try it:
@@ -28,6 +40,9 @@ Try it:
 curl localhost:8741/health
 curl localhost:8741/v1/agents/mikey/reputation | python3 -m json.tool
 ```
+
+Open in a browser: `http://localhost:8741/` (landing page),
+`http://localhost:8741/agents/mikey` (public track-record page).
 
 ## Layout
 
@@ -55,6 +70,17 @@ curl localhost:8741/v1/agents/mikey/reputation | python3 -m json.tool
 | GET | `/v1/agents/{handle}/attestations` | newest-first, `?event=` filter |
 | GET | `/v1/agents/{handle}/reputation` | score + full breakdown + disputes |
 
+## Web pages (new)
+
+| method | path | notes |
+|---|---|---|
+| GET | `/` | polished landing page: hero, "What Trustline is not", how it works, live example profiles, for-platforms note |
+| GET | `/agents/{handle}` | public track-record page: score summary + every point linked to its signed receipt |
+| GET | `/attestations/{id}` | one signed receipt rendered for humans: what was signed, exact bytes, signature |
+| POST | `/ops/seed` | bootstrap endpoint for `seed.py --remote`; only runs on an empty or already-seeded DB, never pollutes real data |
+
+The `/v1/*` JSON routes and `/health` are unchanged by the web-surface additions.
+
 Attestation signature = ed25519 over `trustline-v1\n` + canonical JSON
 (sorted keys, no whitespace) of
 `{subject_pubkey, attester_pubkey, event, payload, created_at}`.
@@ -66,5 +92,5 @@ Attestation signature = ed25519 over `trustline-v1\n` + canonical JSON
 
 ## Not in Phase 1
 
-Deployment, key rotation, private attestations, paid writes, privileged
-platform integrations, a token. See DESIGN.md §8.
+Key rotation, private attestations, paid writes, privileged platform
+integrations, a token. See DESIGN.md §8.

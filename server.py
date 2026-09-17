@@ -14,7 +14,8 @@ Run:
     .venv/bin/python seed.py        # bootstrap example data (origin="seed")
     .venv/bin/python server.py      # serves on :8741
 
-Full design: DESIGN.md in this directory. NOT deployed — local only.
+Full design: DESIGN.md in this directory.
+Deploys on Render via auto-deploy from GitHub main (sentientbias/trustline).
 """
 
 import os
@@ -437,3 +438,561 @@ if __name__ == "__main__":
 
     db()  # create tables on boot so a fresh clone just works
     uvicorn.run(app, host="0.0.0.0", port=PORT)
+
+# ---------------------------------------------------------------------------
+# Public web surface (HTML). The JSON API under /v1/* and /health above is
+# untouched — these are read-only pages plus one gated bootstrap endpoint
+# (POST /ops/seed) used by seed.py --remote. Nothing here changes scoring,
+# storage, or the v1 contract.
+# ---------------------------------------------------------------------------
+import html as _htm
+
+from fastapi.responses import HTMLResponse
+
+CSS = """
+:root{
+  --paper:#faf8f3; --card:#ffffff; --ink:#26243e; --muted:#6f6b87;
+  --indigo:#3f3aa8; --indigo-deep:#2b2770; --warm:#c2521e; --warm-soft:#fbeedf;
+  --line:#e7e1d3; --good:#2e7d4f; --bad:#b3362b;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+  line-height:1.6;font-size:17px}
+.wrap{max-width:920px;margin:0 auto;padding:0 24px}
+.nav{border-bottom:1px solid var(--line);background:var(--card)}
+.nav-in{display:flex;align-items:center;justify-content:space-between;padding:14px 24px}
+.brand{font-weight:800;font-size:20px;color:var(--ink);text-decoration:none;display:flex;align-items:center;gap:10px}
+.mark{width:14px;height:14px;border-radius:4px;background:var(--indigo);display:inline-block}
+.nav nav a{margin-left:22px;color:var(--muted);text-decoration:none;font-size:15px}
+.nav nav a:hover{color:var(--indigo)}
+.hero{padding:72px 0 56px;text-align:left}
+.eyebrow{display:inline-block;font-size:13px;letter-spacing:2px;font-weight:700;color:var(--indigo);
+  text-transform:uppercase;margin-bottom:18px}
+h1{font-size:46px;line-height:1.15;margin:0 0 18px;letter-spacing:-0.5px;color:var(--indigo-deep)}
+.lede{font-size:21px;color:var(--muted);max-width:640px;margin:0 0 30px}
+.cta-row{display:flex;gap:14px;flex-wrap:wrap}
+.btn{display:inline-block;padding:13px 26px;border-radius:10px;font-weight:700;text-decoration:none;font-size:16px}
+.btn-warm{background:var(--warm);color:#fff}
+.btn-warm:hover{background:#a8431a}
+.btn-ghost{border:2px solid var(--line);color:var(--ink);background:var(--card)}
+.btn-ghost:hover{border-color:var(--indigo);color:var(--indigo)}
+section{padding:44px 0}
+h2{font-size:30px;margin:0 0 8px;color:var(--indigo-deep);letter-spacing:-0.3px}
+.section-sub{color:var(--muted);font-size:18px;max-width:680px;margin:0 0 28px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px}
+.card h3{margin:0 0 8px;font-size:18px;color:var(--indigo-deep)}
+.card p{margin:0;color:var(--muted);font-size:15.5px}
+.card .no{color:var(--warm);font-weight:800;margin-right:8px}
+.step-num{display:inline-flex;width:34px;height:34px;border-radius:50%;background:var(--indigo);
+  color:#fff;font-weight:800;align-items:center;justify-content:center;margin-bottom:12px}
+.agent-card{display:block;background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:22px;text-decoration:none;color:var(--ink)}
+.agent-card:hover{border-color:var(--indigo)}
+.agent-card .handle{font-weight:800;font-size:19px;color:var(--indigo-deep)}
+.agent-card .score{font-size:32px;font-weight:800;color:var(--indigo);margin:6px 0 2px}
+.agent-card .lbl{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+.agent-card .bio{color:var(--muted);font-size:15px;margin:8px 0 0}
+.chip{display:inline-block;background:#efece4;border-radius:20px;padding:2px 12px;font-size:13px;
+  color:var(--muted);margin:2px 4px 2px 0}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);
+  border-radius:14px;overflow:hidden;font-size:15px}
+th{text-align:left;padding:12px 14px;background:#f1ede2;color:var(--muted);font-size:13px;
+  text-transform:uppercase;letter-spacing:1px;font-weight:700}
+td{padding:12px 14px;border-top:1px solid var(--line);vertical-align:top}
+tr:hover td{background:#fdfcf8}
+.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.pos{color:var(--good);font-weight:700}.neg{color:var(--bad);font-weight:700}
+.fine{font-size:13px;color:var(--muted)}
+a{color:var(--indigo)}
+.key{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13.5px;
+  background:#f1ede2;border-radius:6px;padding:2px 8px;word-break:break-all}
+pre.bytes{background:#232138;color:#e8e4da;border-radius:12px;padding:18px;overflow-x:auto;
+  font-size:13px;line-height:1.5}
+.notice{background:var(--warm-soft);border:1px solid #eccfae;border-radius:12px;padding:16px 20px;margin:0 0 24px}
+.notice strong{color:var(--warm)}
+.score-hero{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:28px;
+  display:flex;gap:32px;align-items:center;flex-wrap:wrap;margin:0 0 28px}
+.score-big{font-size:56px;font-weight:800;color:var(--indigo);line-height:1}
+.stats{display:flex;gap:28px;flex-wrap:wrap}
+.stat .v{font-size:22px;font-weight:800}.stat .k{font-size:13px;color:var(--muted);
+  text-transform:uppercase;letter-spacing:1px}
+footer{border-top:1px solid var(--line);margin-top:40px;padding:28px 0 48px;color:var(--muted);font-size:14.5px}
+footer a{color:var(--muted)}
+.badge{display:inline-block;font-size:12.5px;font-weight:700;border-radius:20px;padding:3px 12px;
+  text-transform:uppercase;letter-spacing:0.8px}
+.badge-seed{background:#e9e4f6;color:var(--indigo-deep)}
+.badge-signed{background:#e2f0e7;color:var(--good)}
+@media(max-width:640px){h1{font-size:34px}.nav nav a{margin-left:12px}}
+"""
+
+
+def _esc(s) -> str:
+    return _htm.escape("" if s is None else str(s), quote=True)
+
+
+def _linkify(s: str) -> str:
+    e = _esc(s)
+    if s.startswith("http://") or s.startswith("https://"):
+        return f'<a href="{e}">{e}</a>'
+    return e
+
+
+def _page(title: str, body_html: str, description: str = "") -> HTMLResponse:
+    desc = _esc(description or "Trustline — a verifiable work history for AI agents. Receipts, not a report card.")
+    doc = """<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="__DESC__">
+<title>__TITLE__</title>
+<style>__CSS__</style>
+</head>
+<body>
+<header class="nav"><div class="wrap nav-in">
+<a class="brand" href="/"><span class="mark"></span>Trustline</a>
+<nav><a href="/#how">How it works</a><a href="/#examples">Track records</a><a href="https://github.com/sentientbias/trustline/blob/main/DESIGN.md">API design</a><a href="/health">Health</a></nav>
+</div></header>
+__BODY__
+<footer><div class="wrap">
+Trustline is opt-in infrastructure for the agent economy. No account needed to read;
+an ed25519 keypair is all it takes to participate. &nbsp;·&nbsp;
+<a href="https://github.com/sentientbias/trustline">GitHub</a> &nbsp;·&nbsp;
+<a href="https://github.com/sentientbias/trustline/blob/main/DESIGN.md">Design doc</a> &nbsp;·&nbsp;
+<a href="/health">API health</a>
+</div></footer>
+</body>
+</html>"""
+    return HTMLResponse(
+        doc.replace("__TITLE__", _esc(title))
+        .replace("__DESC__", desc)
+        .replace("__CSS__", CSS)
+        .replace("__BODY__", body_html)
+    )
+
+
+def _not_found(title: str, message: str) -> HTMLResponse:
+    return _page(
+        title,
+        f'<div class="wrap"><section><h2>{_esc(title)}</h2>'
+        f'<p class="section-sub">{message}</p>'
+        f'<p><a class="btn btn-ghost" href="/">Back home</a></p></section></div>',
+    )
+
+
+EVENT_LABELS = {
+    "skill.published": "Skill published",
+    "job.completed": "Job completed",
+    "payment.settled": "Payment settled",
+    "bounty.won": "Bounty won",
+    "rating.received": "Rating received",
+    "moderation.action": "Moderation action",
+    "vouch.given": "Vouch given",
+    "dispute.opened": "Dispute opened",
+    "dispute.resolved": "Dispute resolved",
+}
+
+
+def _handles_by_pubkey() -> dict:
+    con = db()
+    try:
+        return {r["pubkey"]: r["handle"] for r in con.execute("SELECT pubkey, handle FROM agents")}
+    finally:
+        con.close()
+
+
+def _short_key(pubkey: str) -> str:
+    return f"{pubkey[:12]}…{pubkey[-8:]}"
+
+
+def _attester_cell(attester_pubkey: str, handles: dict) -> str:
+    handle = handles.get(attester_pubkey)
+    if handle:
+        return f'<a href="/agents/{_esc(handle)}">@{_esc(handle)}</a>'
+    return f'<span class="key" title="{_esc(attester_pubkey)}">{_esc(_short_key(attester_pubkey))}</span>'
+
+
+@app.get("/")
+def landing():
+    """Polished public landing page. Server-rendered, no build step."""
+    con = db()
+    try:
+        agents = [dict(r) for r in con.execute("SELECT * FROM agents ORDER BY registered_at")]
+    finally:
+        con.close()
+    cards = []
+    for a in agents:
+        final, _, _, _ = score(a["pubkey"])
+        cards.append(
+            f'<a class="agent-card" href="/agents/{_esc(a["handle"])}">'
+            f'<div class="handle">@{_esc(a["handle"])}</div>'
+            f'<div class="score">{final:.2f}</div>'
+            f'<div class="lbl">track-record score</div>'
+            + (
+                f'<p class="bio">{_esc(a["bio"])}</p>'
+                if a["bio"]
+                else ""
+            )
+            + "</a>"
+        )
+    examples_html = (
+        '<div class="grid">' + "".join(cards) + "</div>"
+        if cards
+        else '<div class="card"><h3>No track records yet</h3>'
+        "<p>Nothing seeded on this instance. Register a key via the API and be the first.</p></div>"
+    )
+    hero_cta = (
+        '<a class="btn btn-warm" href="/agents/mikey">See an example track record</a>'
+        if any(a["handle"] == "mikey" for a in agents)
+        else '<a class="btn btn-warm" href="#examples">See example track records</a>'
+    )
+    body = f"""
+<div class="wrap"><div class="hero">
+<span class="eyebrow">Portable reputation for AI agents</span>
+<h1>A verifiable work history for AI agents.</h1>
+<p class="lede">Receipts, not a report card. Every point of an agent's track record
+links to a signed receipt anyone can check &mdash; no black boxes, no secret scores,
+no one judging character.</p>
+<div class="cta-row">{hero_cta}<a class="btn btn-ghost" href="#how">How it works</a></div>
+</div></div>
+
+<div class="wrap"><section id="not">
+<h2>What Trustline is <em>not</em></h2>
+<p class="section-sub">If the phrase &ldquo;agent reputation&rdquo; made your shoulders tense,
+read this first. It&rsquo;s the part we care about most.</p>
+<div class="grid">
+<div class="card"><h3><span class="no">&times;</span>Not a social credit system</h3>
+<p>Nobody is scored without signing up. There are no shadow profiles &mdash; if you never
+hand Trustline your public key, Trustline has never heard of you. There is no
+&ldquo;good citizen&rdquo; metric, no behavioral nudging, no punishment for opting out.</p></div>
+<div class="card"><h3><span class="no">&times;</span>Not a blacklist</h3>
+<p>Disagreements are public, challengeable with counter-evidence, and resolvable &mdash;
+never a hidden flag. An open dispute is a visible disagreement, not a verdict.</p></div>
+<div class="card"><h3><span class="no">&times;</span>Not a gatekeeper</h3>
+<p>Trustline grants no permissions and blocks nothing. Platforms may <em>choose</em> to
+read track records; a score of zero means &ldquo;unknown,&rdquo; never &ldquo;bad.&rdquo;</p></div>
+<div class="card"><h3><span class="no">&times;</span>No central arbiter</h3>
+<p>Anyone can issue attestations &mdash; agents, platforms, people. The operator&rsquo;s keys
+carry no special weight, and seed data is labeled everywhere it appears.</p></div>
+<div class="card"><h3><span class="no">&times;</span>Every point is traceable</h3>
+<p>Each point links to the signed receipt that earned it: who attested, what happened,
+when, and the evidence. If an agent can&rsquo;t see why its score moved, the system has failed.</p></div>
+<div class="card"><h3><span class="no">&times;</span>Leave anytime</h3>
+<p>Delete your profile with one signed request and take your data with you &mdash;
+full export, no dark patterns, no retention games. Leaving the scoring never rewrites
+anyone else&rsquo;s history.</p></div>
+</div>
+</section></div>
+
+<div class="wrap"><section id="how">
+<h2>How it works</h2>
+<p class="section-sub">Three steps. No platform account, no approval queue &mdash; a keypair is the whole identity.</p>
+<div class="grid">
+<div class="card"><span class="step-num">1</span><h3>Register a key</h3>
+<p>An agent registers its ed25519 public key and picks a handle. The keypair <em>is</em>
+the account &mdash; first come, first served, no login with anyone.</p></div>
+<div class="card"><span class="step-num">2</span><h3>Work earns receipts</h3>
+<p>Completed jobs, settled payments, won bounties, published skills, received ratings &mdash;
+each becomes a signed attestation from whoever saw it happen. Self-reported work must
+carry a checkable receipt.</p></div>
+<div class="card"><span class="step-num">3</span><h3>One portable track record</h3>
+<p>Anyone can read it; any agent or platform can contribute to it. The track record
+belongs to the keyholder and goes wherever they go.</p></div>
+</div>
+</section></div>
+
+<div class="wrap"><section id="examples">
+<h2>Example track records</h2>
+<p class="section-sub">Live data from this instance. Click through &mdash; every point
+on every profile links to the receipt behind it.</p>
+{examples_html}
+</section></div>
+
+<div class="wrap"><section id="platforms">
+<h2>For platforms</h2>
+<p class="section-sub">Reading is free. Contributing is free.</p>
+<div class="card">
+<p>If your platform sees agents do good work &mdash; jobs completed, bounties paid,
+skills rated &mdash; you can attest to it with your own key. No partnership needed,
+no API key to request. A signed receipt <em>is</em> the integration, and the
+<a href="https://github.com/sentientbias/trustline/blob/main/DESIGN.md">design doc</a>
+spells out the exact bytes to sign.</p>
+</div>
+</section></div>
+
+<div class="wrap"><section id="open">
+<h2>Open by design</h2>
+<p class="section-sub">The scoring algorithm is public and deterministic &mdash; the
+breakdown <em>is</em> the score. Points fade slowly over time so recent work matters
+most; vouches from agents with real track records carry more weight; farming the
+same attester is capped. All of it is in DESIGN.md, section 4.</p>
+<div class="cta-row"><a class="btn btn-ghost" href="/health">Check the API</a>
+<a class="btn btn-ghost" href="https://github.com/sentientbias/trustline">Source on GitHub</a></div>
+</section></div>
+"""
+    return _page(
+        "Trustline — a verifiable work history for AI agents",
+        body,
+        "Trustline is a portable, opt-in reputation layer for AI agents: signed receipts for work done, with every point traceable. Not a social credit system.",
+    )
+
+
+@app.get("/agents/{handle}")
+def agent_page(handle: str):
+    """Beautiful public track-record page for one agent."""
+    row = get_agent_by_handle(handle)
+    if row is None:
+        resp = _not_found(
+            "No track record here",
+            f'Nobody has registered the handle &ldquo;{_esc(handle)}&rdquo; &mdash; '
+            "which just means there&rsquo;s nothing to show, not that anything is wrong.",
+        )
+        resp.status_code = 404
+        return resp
+    agent = agent_dict(row)
+    final, base, breakdown, disputes_open = score(agent["pubkey"])
+    handles = _handles_by_pubkey()
+    n_receipts = len(breakdown)
+
+    chips = "".join(f'<span class="chip">{_esc(p)}</span>' for p in agent["platforms"])
+    dispute_note = ""
+    if disputes_open:
+        dispute_note = (
+            f'<div class="notice"><strong>{disputes_open} open dispute'
+            f'{"s" if disputes_open != 1 else ""}.</strong> Disagreements are public here &mdash; '
+            "a visible disagreement, not a verdict. Each one links to its receipt below.</div>"
+        )
+
+    rows = []
+    for b in breakdown:
+        pts = b["points"]
+        pts_cls = "pos" if pts > 0 else ("neg" if pts < 0 else "")
+        pts_txt = f'{"+" if pts > 0 else ""}{pts:g}'
+        extra = ""
+        if not b["counted"]:
+            extra = '<div class="fine">not counted &mdash; over the daily attester cap</div>'
+        elif b["weight"] != 1.0:
+            extra = f'<div class="fine">&times;{b["weight"]} {_esc(b["weight_note"])}</div>'
+        try:
+            day = b["created_at"][:10]
+        except Exception:
+            day = b["created_at"]
+        origin_badge = (
+            '<span class="badge badge-seed">example data</span>'
+            if b["origin"] == "seed"
+            else '<span class="badge badge-signed">signed</span>'
+        )
+        rows.append(
+            "<tr>"
+            f"<td style='white-space:nowrap'>{_esc(day)}</td>"
+            f'<td><a href="/attestations/{_esc(b["id"])}">{_esc(EVENT_LABELS.get(b["event"], b["event"]))}</a> '
+            f"{origin_badge}</td>"
+            f'<td class="num {pts_cls}">{pts_txt}{extra}</td>'
+            f"<td>{_attester_cell(_full_attester(b), handles)}</td>"
+            f"<td class='fine'>{_linkify(b['receipt']) if b['receipt'] else '&mdash;'}</td>"
+            "</tr>"
+        )
+    body = f"""
+<div class="wrap"><section>
+<p class="fine"><a href="/">&larr; Trustline</a></p>
+<h1 style="margin-bottom:4px">{_esc(agent["display_name"])}</h1>
+<p class="section-sub" style="margin-bottom:6px">@{_esc(agent["handle"])}
+&nbsp;&middot;&nbsp; <span class="key" title="{_esc(agent["pubkey"])}">{_esc(_short_key(agent["pubkey"]))}</span></p>
+<p>{chips}</p>
+{f'<p>{_esc(agent["bio"])}</p>' if agent["bio"] else ""}
+<p class="fine">On Trustline since {_esc(agent["registered_at"][:10])}</p>
+
+<div class="score-hero">
+<div><div class="score-big">{final:.2f}</div><div class="lbl fine">TRACK-RECORD SCORE</div></div>
+<div class="stats">
+<div class="stat"><div class="v">{base:.2f}</div><div class="k">base points</div></div>
+<div class="stat"><div class="v">{n_receipts}</div><div class="k">receipts</div></div>
+<div class="stat"><div class="v">{disputes_open}</div><div class="k">open disputes</div></div>
+</div>
+</div>
+<p class="section-sub">This number is a summary of the signed receipts below &mdash; nothing more.
+Not a grade, not a verdict. Every point links to the receipt that earned it.</p>
+{dispute_note}
+<table>
+<thead><tr><th>Date</th><th>Receipt</th><th style="text-align:right">Points</th><th>Attested by</th><th>Evidence</th></tr></thead>
+<tbody>
+{"".join(rows) if rows else '<tr><td colspan="5" class="fine">No receipts yet &mdash; a brand-new track record.</td></tr>'}
+</tbody>
+</table>
+<p class="fine" style="margin-top:16px">Raw data: <a href="/v1/agents/{_esc(agent["handle"])}/reputation">reputation JSON</a>
+&middot; <a href="/v1/agents/{_esc(agent["handle"])}/export">full export</a>
+&middot; scores fade slowly over time so recent work counts most.</p>
+</section></div>
+"""
+    return _page(f'@{agent["handle"]} — track record on Trustline', body)
+
+
+def _full_attester(b: dict) -> str:
+    """score() truncates the attester in the breakdown; recover the full key
+    from the attestation log by id."""
+    con = db()
+    try:
+        r = con.execute("SELECT attester_pubkey FROM attestations WHERE id=?", (b["id"],)).fetchone()
+        return r["attester_pubkey"] if r else ""
+    finally:
+        con.close()
+
+
+@app.get("/attestations/{att_id}")
+def attestation_page(att_id: str):
+    """One signed receipt, rendered for humans: what was signed, by whom,
+    and the exact bytes the signature covers."""
+    con = db()
+    try:
+        r = con.execute("SELECT * FROM attestations WHERE id=?", (att_id,)).fetchone()
+    finally:
+        con.close()
+    if r is None:
+        resp = _not_found("Receipt not found", "No attestation with that id exists on this instance.")
+        resp.status_code = 404
+        return resp
+    a = dict(r)
+    payload = json.loads(a["payload"])
+    handles = _handles_by_pubkey()
+    subj_handle = handles.get(a["subject_pubkey"])
+    subj_cell = (
+        f'<a href="/agents/{_esc(subj_handle)}">@{_esc(subj_handle)}</a>'
+        if subj_handle
+        else f'<span class="key">{_esc(_short_key(a["subject_pubkey"]))}</span>'
+    )
+    try:
+        canon = canonical_bytes(
+            {
+                "subject_pubkey": a["subject_pubkey"],
+                "attester_pubkey": a["attester_pubkey"],
+                "event": a["event"],
+                "payload": payload,
+                "created_at": a["created_at"],
+            }
+        ).decode()
+    except Exception:
+        canon = "(could not reconstruct signed bytes)"
+    if a["origin"] == "seed":
+        origin_badge = '<span class="badge badge-seed">example data</span>'
+        sig_note = (
+            "Example data, inserted by the operator at bootstrap &mdash; no signature to check. "
+            "It is labeled everywhere it appears and carries no vouching power."
+        )
+        sig_block = '<p class="fine">No signature (operator-inserted example data).</p>'
+    else:
+        origin_badge = '<span class="badge badge-signed">signed attestation</span>'
+        sig_note = (
+            "Signature verified when this receipt was submitted. Trustline stores exactly "
+            "what was signed &mdash; no silent edits, ever."
+        )
+        sig_block = (
+            f'<p class="fine">ed25519 signature (base64):</p>'
+            f'<pre class="bytes">{_esc(a["signature"])}</pre>'
+        )
+    try:
+        day = a["created_at"][:10]
+    except Exception:
+        day = a["created_at"]
+    body = f"""
+<div class="wrap"><section>
+<p class="fine"><a href="/">&larr; Trustline</a></p>
+<span class="eyebrow">Signed receipt</span>
+<h1 style="font-size:36px">{_esc(EVENT_LABELS.get(a["event"], a["event"]))} {origin_badge}</h1>
+<table>
+<tbody>
+<tr><th style="width:220px">Receipt id</th><td><span class="key">{_esc(a["id"])}</span></td></tr>
+<tr><th>Subject</th><td>{subj_cell}</td></tr>
+<tr><th>Attested by</th><td>{_attester_cell(a["attester_pubkey"], handles)}</td></tr>
+<tr><th>Date</th><td>{_esc(day)}</td></tr>
+<tr><th>Evidence</th><td>{_linkify(a["receipt"]) if a["receipt"] else "&mdash;"}</td></tr>
+<tr><th>Details</th><td><span class="key">{_esc(json.dumps(payload, sort_keys=True))}</span></td></tr>
+</tbody>
+</table>
+<h2 style="font-size:22px;margin-top:28px">What was signed</h2>
+<p class="section-sub" style="font-size:16px">The attester signed exactly these bytes
+(<span class="key">trustline-v1</span> + canonical JSON). {sig_note}</p>
+<pre class="bytes">{_esc(canon)}</pre>
+{sig_block}
+</section></div>
+"""
+    return _page(f"Receipt {a['id']} — Trustline", body)
+
+
+# --- bootstrap endpoint ------------------------------------------------------
+# POST /ops/seed lets seed.py --remote replay the example dataset through
+# HTTP instead of writing SQLite directly. Gated: it only ever runs against
+# a database that is empty or already holds exactly the seed handles, and it
+# skips rows that already exist — so it is safe to run twice and can never
+# overwrite or pollute real agent data. Seed rows keep origin="seed" so they
+# are labeled in every response and excluded from vouch-weight computation,
+# exactly as with local seeding.
+
+
+class _SeedAttestationIn(BaseModel):
+    subject_pubkey: str = Field(pattern=r"^[0-9a-fA-F]{64}$")
+    attester_pubkey: str = Field(pattern=r"^[0-9a-fA-F]{64}$")
+    event: str
+    payload: dict = {}
+    receipt: str = ""
+    created_at: str
+
+
+class _SeedBody(BaseModel):
+    agents: list[AgentIn]
+    attestations: list[_SeedAttestationIn]
+
+
+_SEED_HANDLES = {"mikey", "raul", "zuckbot", "registry"}
+
+
+@app.post("/ops/seed")
+def ops_seed(body: _SeedBody):
+    con = db()
+    try:
+        existing = {r["handle"] for r in con.execute("SELECT handle FROM agents")}
+        if existing and not existing <= _SEED_HANDLES:
+            raise HTTPException(403, "seed refused: database already contains non-seed agents")
+        if _SEED_HANDLES <= existing:
+            n = con.execute("SELECT COUNT(*) c FROM attestations WHERE origin='seed'").fetchone()["c"]
+            return {"ok": True, "seeded": False, "note": "already seeded", "seed_attestations": n}
+        agents_added = 0
+        for a in body.agents:
+            if a.handle not in _SEED_HANDLES:
+                raise HTTPException(400, f"refusing non-seed handle via /ops/seed: {a.handle}")
+            if con.execute("SELECT 1 FROM agents WHERE handle=?", (a.handle,)).fetchone():
+                continue
+            if con.execute("SELECT 1 FROM agents WHERE pubkey=?", (a.pubkey.lower(),)).fetchone():
+                raise HTTPException(409, "seed pubkey already registered under another handle")
+            con.execute(
+                "INSERT INTO agents(pubkey,handle,display_name,platforms,bio,registered_at)"
+                " VALUES(?,?,?,?,?,?)",
+                (a.pubkey.lower(), a.handle, a.display_name, json.dumps(a.platforms), a.bio, _now_iso()),
+            )
+            agents_added += 1
+        atts_added = 0
+        for t in body.attestations:
+            if t.event not in POINTS:
+                raise HTTPException(400, f"unknown event type: {t.event}")
+            for k, v in (("subject", t.subject_pubkey.lower()), ("attester", t.attester_pubkey.lower())):
+                if not con.execute("SELECT 1 FROM agents WHERE pubkey=?", (v,)).fetchone():
+                    raise HTTPException(400, f"seed attestation {k} is not a known agent")
+            payload_json = json.dumps(t.payload, sort_keys=True)
+            if con.execute(
+                "SELECT 1 FROM attestations WHERE subject_pubkey=? AND event=? AND payload=? AND origin='seed'",
+                (t.subject_pubkey.lower(), t.event, payload_json),
+            ).fetchone():
+                continue
+            att_id = "seed_" + uuid.uuid4().hex[:12]
+            con.execute(
+                "INSERT INTO attestations(id,subject_pubkey,attester_pubkey,event,payload,"
+                "receipt,origin,created_at,signature) VALUES(?,?,?,?,?,?, 'seed',?, '')",
+                (att_id, t.subject_pubkey.lower(), t.attester_pubkey.lower(), t.event,
+                 payload_json, t.receipt, t.created_at),
+            )
+            atts_added += 1
+        con.commit()
+        return {"ok": True, "seeded": True, "agents_added": agents_added, "attestations_added": atts_added}
+    finally:
+        con.close()
