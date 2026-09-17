@@ -272,6 +272,14 @@ class AttestationIn(BaseModel):
     signature: str  # base64 ed25519 over canonical bytes
 
 
+@app.get("/og-image.png")
+def og_image():
+    return FileResponse(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "og-image.png"),
+        media_type="image/png",
+    )
+
+
 @app.get("/health")
 def health():
     return {"ok": True, "service": "trustline", "version": "0.1.0", "time": _now_iso()}
@@ -447,7 +455,7 @@ if __name__ == "__main__":
 # ---------------------------------------------------------------------------
 import html as _htm
 
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 
 CSS = """
 :root{
@@ -636,6 +644,11 @@ def _page(title: str, body_html: str, description: str = "") -> HTMLResponse:
 <meta property="og:title" content="__TITLE__">
 <meta property="og:description" content="__DESC__">
 <meta property="og:type" content="website">
+<meta property="og:image" content="https://trustlineapp.com/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://trustlineapp.com/og-image.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232b2770'/%3E%3Cpath d='M20 33l10 10 14-20' stroke='%23e07b39' stroke-width='7' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <title>__TITLE__</title>
 <style>__CSS__</style>
