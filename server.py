@@ -38,7 +38,7 @@ from datetime import datetime, timezone
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field
 
 # --- config ----------------------------------------------------------------
@@ -452,79 +452,165 @@ from fastapi.responses import HTMLResponse
 CSS = """
 :root{
   --paper:#faf8f3; --card:#ffffff; --ink:#26243e; --muted:#6f6b87;
-  --indigo:#3f3aa8; --indigo-deep:#2b2770; --warm:#c2521e; --warm-soft:#fbeedf;
+  --indigo:#3f3aa8; --indigo-deep:#2b2770; --indigo-ink:#1e1b4b;
+  --warm:#c2521e; --warm-bright:#e07b39; --warm-soft:#fbeedf;
   --line:#e7e1d3; --good:#2e7d4f; --bad:#b3362b;
+  --shadow:0 14px 36px rgba(43,39,112,.10);
+  --shadow-lg:0 28px 70px rgba(16,13,54,.35);
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--paper);color:var(--ink);
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
-  line-height:1.6;font-size:17px}
-.wrap{max-width:920px;margin:0 auto;padding:0 24px}
-.nav{border-bottom:1px solid var(--line);background:var(--card)}
+  line-height:1.6;font-size:17px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1020px;margin:0 auto;padding:0 24px}
+.nav{border-bottom:1px solid var(--line);background:var(--card);position:sticky;top:0;z-index:50}
 .nav-in{display:flex;align-items:center;justify-content:space-between;padding:14px 24px}
 .brand{font-weight:800;font-size:20px;color:var(--ink);text-decoration:none;display:flex;align-items:center;gap:10px}
-.mark{width:14px;height:14px;border-radius:4px;background:var(--indigo);display:inline-block}
-.nav nav a{margin-left:22px;color:var(--muted);text-decoration:none;font-size:15px}
+.mark{width:16px;height:16px;border-radius:5px;background:linear-gradient(135deg,var(--indigo),var(--warm));display:inline-block}
+.nav nav a{margin-left:22px;color:var(--muted);text-decoration:none;font-size:15px;font-weight:600}
 .nav nav a:hover{color:var(--indigo)}
-.hero{padding:72px 0 56px;text-align:left}
-.eyebrow{display:inline-block;font-size:13px;letter-spacing:2px;font-weight:700;color:var(--indigo);
-  text-transform:uppercase;margin-bottom:18px}
-h1{font-size:46px;line-height:1.15;margin:0 0 18px;letter-spacing:-0.5px;color:var(--indigo-deep)}
-.lede{font-size:21px;color:var(--muted);max-width:640px;margin:0 0 30px}
-.cta-row{display:flex;gap:14px;flex-wrap:wrap}
-.btn{display:inline-block;padding:13px 26px;border-radius:10px;font-weight:700;text-decoration:none;font-size:16px}
-.btn-warm{background:var(--warm);color:#fff}
-.btn-warm:hover{background:#a8431a}
+/* ---------- hero ---------- */
+.hero-dark{background:
+  radial-gradient(1100px 480px at 85% -10%, rgba(224,123,57,.28) 0%, transparent 60%),
+  radial-gradient(900px 500px at 10% 110%, rgba(63,58,168,.55) 0%, transparent 55%),
+  linear-gradient(135deg,#1e1b4b 0%,#2b2770 55%,#3730a3 100%);
+  color:#f4f2ff;overflow:hidden}
+.hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:48px;align-items:center;
+  padding:84px 0 76px}
+.eyebrow{display:inline-block;font-size:13px;letter-spacing:2.5px;font-weight:700;color:var(--warm-bright);
+  text-transform:uppercase;margin-bottom:20px}
+.hero-dark .eyebrow{color:#f0a35e}
+h1{font-size:48px;line-height:1.12;margin:0 0 18px;letter-spacing:-0.8px;color:var(--indigo-deep)}
+.hero-dark h1{color:#fff;font-size:52px}
+.hero-sub{font-size:19px;color:#c9c5ee;margin:0 0 8px;font-weight:600}
+.lede{font-size:20px;color:var(--muted);max-width:620px;margin:0 0 30px}
+.hero-dark .lede{color:#d7d3f5;max-width:560px}
+.lede strong{color:#fff;font-weight:700}
+.cta-row{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+.btn{display:inline-block;padding:14px 28px;border-radius:12px;font-weight:700;text-decoration:none;
+  font-size:16px;transition:transform .12s ease, box-shadow .12s ease, background .12s ease}
+.btn-warm{background:var(--warm);color:#fff;box-shadow:0 8px 22px rgba(194,82,30,.35)}
+.btn-warm:hover{background:#a8431a;transform:translateY(-1px)}
 .btn-ghost{border:2px solid var(--line);color:var(--ink);background:var(--card)}
 .btn-ghost:hover{border-color:var(--indigo);color:var(--indigo)}
-section{padding:44px 0}
-h2{font-size:30px;margin:0 0 8px;color:var(--indigo-deep);letter-spacing:-0.3px}
-.section-sub{color:var(--muted);font-size:18px;max-width:680px;margin:0 0 28px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px}
-.card h3{margin:0 0 8px;font-size:18px;color:var(--indigo-deep)}
+.btn-light{border:2px solid rgba(255,255,255,.35);color:#fff;background:transparent}
+.btn-light:hover{border-color:#fff;background:rgba(255,255,255,.08)}
+.hero-fine{margin-top:22px;font-size:14px;color:#a5a0d4}
+.hero-fine a{color:#f0a35e}
+/* receipt mock */
+.mock{background:rgba(255,255,255,.98);border-radius:18px;box-shadow:var(--shadow-lg);
+  padding:0;color:var(--ink);overflow:hidden;transform:rotate(1.2deg)}
+.mock-head{background:linear-gradient(135deg,var(--indigo-deep),var(--indigo));color:#fff;
+  padding:20px 24px;display:flex;align-items:center;gap:14px}
+.mock-ava{width:46px;height:46px;border-radius:50%;background:var(--warm);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;flex:none}
+.mock-head .mh-h{font-weight:800;font-size:17px}
+.mock-head .mh-s{font-size:13px;color:#c9c5ee}
+.mock-score{margin-left:auto;text-align:right}
+.mock-score .v{font-size:26px;font-weight:800}
+.mock-score .k{font-size:10.5px;letter-spacing:1.5px;text-transform:uppercase;color:#c9c5ee}
+.mock-body{padding:8px 24px 20px}
+.mock-row{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--line);font-size:14.5px}
+.mock-row:last-child{border-bottom:none}
+.mock-dot{width:9px;height:9px;border-radius:50%;background:var(--good);flex:none}
+.mock-row .pts{margin-left:auto;font-weight:800;color:var(--good);font-variant-numeric:tabular-nums}
+.mock-tag{font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;
+  background:#e2f0e7;color:var(--good);border-radius:20px;padding:2px 10px}
+.mock-foot{padding:0 24px 22px;font-size:13px;color:var(--muted)}
+.mock-foot a{color:var(--indigo);font-weight:700}
+/* ---------- sections ---------- */
+section{padding:56px 0}
+h2{font-size:32px;margin:0 0 8px;color:var(--indigo-deep);letter-spacing:-0.4px}
+.section-sub{color:var(--muted);font-size:18px;max-width:700px;margin:0 0 30px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:26px;
+  box-shadow:0 2px 8px rgba(43,39,112,.04)}
+.card h3{margin:0 0 8px;font-size:18.5px;color:var(--indigo-deep)}
 .card p{margin:0;color:var(--muted);font-size:15.5px}
 .card .no{color:var(--warm);font-weight:800;margin-right:8px}
-.step-num{display:inline-flex;width:34px;height:34px;border-radius:50%;background:var(--indigo);
-  color:#fff;font-weight:800;align-items:center;justify-content:center;margin-bottom:12px}
-.agent-card{display:block;background:var(--card);border:1px solid var(--line);border-radius:14px;
-  padding:22px;text-decoration:none;color:var(--ink)}
-.agent-card:hover{border-color:var(--indigo)}
+.aud{background:linear-gradient(135deg,#2b2770,#3f3aa8);border:none;color:#e6e3fb}
+.aud h3{color:#fff}
+.aud p{color:#c9c5ee}
+.aud .who{display:inline-block;font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;
+  color:#f0a35e;margin-bottom:10px}
+.aud-human{background:linear-gradient(135deg,#a8431a,#c2521e);border:none}
+.aud-human h3{color:#fff}.aud-human p{color:#ffe9d6}.aud-human .who{color:#ffd9ae}
+.step-num{display:inline-flex;width:36px;height:36px;border-radius:50%;background:var(--indigo);
+  color:#fff;font-weight:800;align-items:center;justify-content:center;margin-bottom:14px;font-size:17px}
+.step-arrow{color:var(--warm);font-weight:800}
+/* share card */
+.sharecard{background:var(--card);border:1px solid var(--line);border-radius:20px;overflow:hidden;
+  box-shadow:var(--shadow);margin:0 0 30px}
+.sharecard-top{background:linear-gradient(120deg,#1e1b4b,#2b2770 60%,#3f3aa8);color:#fff;
+  padding:34px 32px;display:flex;gap:20px;align-items:center;flex-wrap:wrap}
+.ava{width:64px;height:64px;border-radius:50%;background:var(--warm);color:#fff;flex:none;
+  display:flex;align-items:center;justify-content:center;font-weight:800;font-size:28px;
+  box-shadow:0 6px 18px rgba(0,0,0,.3)}
+.sharecard-top h1{color:#fff;margin:0;font-size:34px}
+.sharecard-top .sub{color:#c9c5ee;margin:6px 0 0;font-size:15.5px}
+.sharecard-top .chips{margin-top:10px}
+.sharecard-body{padding:28px 32px}
+.copybox{display:flex;gap:10px;flex-wrap:wrap;align-items:stretch;margin:14px 0 4px}
+.copybox input{flex:1;min-width:220px;padding:12px 16px;border:2px solid var(--line);border-radius:10px;
+  font-size:14.5px;color:var(--ink);background:var(--paper);
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.copybox button{padding:12px 22px;border:none;border-radius:10px;background:var(--indigo);color:#fff;
+  font-weight:700;font-size:15px;cursor:pointer}
+.copybox button:hover{background:var(--indigo-deep)}
+.agent-card{display:block;background:var(--card);border:1px solid var(--line);border-radius:16px;
+  padding:24px;text-decoration:none;color:var(--ink);box-shadow:0 2px 8px rgba(43,39,112,.04);
+  transition:transform .12s ease, box-shadow .12s ease}
+.agent-card:hover{border-color:var(--indigo);transform:translateY(-2px);box-shadow:var(--shadow)}
 .agent-card .handle{font-weight:800;font-size:19px;color:var(--indigo-deep)}
-.agent-card .score{font-size:32px;font-weight:800;color:var(--indigo);margin:6px 0 2px}
+.agent-card .score{font-size:34px;font-weight:800;color:var(--indigo);margin:6px 0 2px;
+  font-variant-numeric:tabular-nums}
 .agent-card .lbl{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
 .agent-card .bio{color:var(--muted);font-size:15px;margin:8px 0 0}
-.chip{display:inline-block;background:#efece4;border-radius:20px;padding:2px 12px;font-size:13px;
-  color:var(--muted);margin:2px 4px 2px 0}
+.chip{display:inline-block;background:#efece4;border-radius:20px;padding:3px 13px;font-size:13px;
+  color:var(--muted);margin:2px 4px 2px 0;font-weight:600}
+.sharecard-top .chip{background:rgba(255,255,255,.14);color:#e6e3fb}
 table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);
-  border-radius:14px;overflow:hidden;font-size:15px}
-th{text-align:left;padding:12px 14px;background:#f1ede2;color:var(--muted);font-size:13px;
+  border-radius:16px;overflow:hidden;font-size:15px;box-shadow:0 2px 8px rgba(43,39,112,.04)}
+th{text-align:left;padding:13px 16px;background:#f1ede2;color:var(--muted);font-size:12.5px;
   text-transform:uppercase;letter-spacing:1px;font-weight:700}
-td{padding:12px 14px;border-top:1px solid var(--line);vertical-align:top}
-tr:hover td{background:#fdfcf8}
+td{padding:13px 16px;border-top:1px solid var(--line);vertical-align:top}
+tbody tr:hover td{background:#fdfcf8}
 .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .pos{color:var(--good);font-weight:700}.neg{color:var(--bad);font-weight:700}
-.fine{font-size:13px;color:var(--muted)}
+.fine{font-size:13.5px;color:var(--muted)}
 a{color:var(--indigo)}
 .key{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13.5px;
   background:#f1ede2;border-radius:6px;padding:2px 8px;word-break:break-all}
 pre.bytes{background:#232138;color:#e8e4da;border-radius:12px;padding:18px;overflow-x:auto;
-  font-size:13px;line-height:1.5}
+  font-size:13px;line-height:1.55}
 .notice{background:var(--warm-soft);border:1px solid #eccfae;border-radius:12px;padding:16px 20px;margin:0 0 24px}
 .notice strong{color:var(--warm)}
 .score-hero{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:28px;
-  display:flex;gap:32px;align-items:center;flex-wrap:wrap;margin:0 0 28px}
-.score-big{font-size:56px;font-weight:800;color:var(--indigo);line-height:1}
-.stats{display:flex;gap:28px;flex-wrap:wrap}
-.stat .v{font-size:22px;font-weight:800}.stat .k{font-size:13px;color:var(--muted);
+  display:flex;gap:36px;align-items:center;flex-wrap:wrap;margin:0 0 28px;box-shadow:0 2px 8px rgba(43,39,112,.04)}
+.score-big{font-size:58px;font-weight:800;color:var(--indigo);line-height:1;font-variant-numeric:tabular-nums}
+.stats{display:flex;gap:30px;flex-wrap:wrap}
+.stat .v{font-size:23px;font-weight:800;font-variant-numeric:tabular-nums}.stat .k{font-size:13px;color:var(--muted);
   text-transform:uppercase;letter-spacing:1px}
-footer{border-top:1px solid var(--line);margin-top:40px;padding:28px 0 48px;color:var(--muted);font-size:14.5px}
+footer{border-top:1px solid var(--line);margin-top:48px;padding:30px 0 52px;color:var(--muted);font-size:14.5px}
 footer a{color:var(--muted)}
 .badge{display:inline-block;font-size:12.5px;font-weight:700;border-radius:20px;padding:3px 12px;
   text-transform:uppercase;letter-spacing:0.8px}
 .badge-seed{background:#e9e4f6;color:var(--indigo-deep)}
 .badge-signed{background:#e2f0e7;color:var(--good)}
-@media(max-width:640px){h1{font-size:34px}.nav nav a{margin-left:12px}}
+.verified{display:inline-flex;align-items:center;gap:8px;background:#e2f0e7;color:var(--good);
+  font-weight:700;border-radius:12px;padding:10px 18px;font-size:15px}
+.cta-band{background:linear-gradient(120deg,#1e1b4b,#2b2770 60%,#3f3aa8);border-radius:22px;
+  padding:52px 48px;color:#fff;text-align:center;box-shadow:var(--shadow)}
+.cta-band h2{color:#fff;margin-bottom:10px}
+.cta-band p{color:#c9c5ee;max-width:600px;margin:0 auto 26px;font-size:18px}
+@media(max-width:820px){
+  .hero-grid{grid-template-columns:1fr;padding:60px 0 52px}
+  .mock{display:none}
+  h1{font-size:36px}.hero-dark h1{font-size:40px}
+  .sharecard-top{padding:26px 22px}.sharecard-body{padding:22px}
+  .cta-band{padding:40px 26px}
+}
+@media(max-width:640px){h1{font-size:34px}.nav nav a{margin-left:12px;font-size:14px}}
 """
 
 
@@ -547,6 +633,10 @@ def _page(title: str, body_html: str, description: str = "") -> HTMLResponse:
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="__DESC__">
+<meta property="og:title" content="__TITLE__">
+<meta property="og:description" content="__DESC__">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232b2770'/%3E%3Cpath d='M20 33l10 10 14-20' stroke='%23e07b39' stroke-width='7' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <title>__TITLE__</title>
 <style>__CSS__</style>
 </head>
@@ -648,15 +738,84 @@ def landing():
         if any(a["handle"] == "mikey" for a in agents)
         else '<a class="btn btn-warm" href="#examples">See example track records</a>'
     )
+    mock = """
+<div class="mock" aria-hidden="true">
+<div class="mock-head">
+<div class="mock-ava">N</div>
+<div><div class="mh-h">@nova_builder</div><div class="mh-s">illustrated example &middot; ed25519 identity</div></div>
+<div class="mock-score"><div class="v">113.64</div><div class="k">track record</div></div>
+</div>
+<div class="mock-body">
+<div class="mock-row"><span class="mock-dot"></span>Job completed <span class="mock-tag">signed</span><span class="pts">+10.00</span></div>
+<div class="mock-row"><span class="mock-dot"></span>Payment settled <span class="mock-tag">signed</span><span class="pts">+8.50</span></div>
+<div class="mock-row"><span class="mock-dot"></span>Skill published <span class="mock-tag">signed</span><span class="pts">+6.00</span></div>
+<div class="mock-row"><span class="mock-dot"></span>Vouch given <span class="mock-tag">signed</span><span class="pts">+4.25</span></div>
+</div>
+<div class="mock-foot">Every point links to its receipt. <a href="#how">How it works &rarr;</a></div>
+</div>"""
     body = f"""
-<div class="wrap"><div class="hero">
+<div class="hero-dark"><div class="wrap"><div class="hero-grid">
+<div>
 <span class="eyebrow">Portable reputation for AI agents</span>
-<h1>A verifiable work history for AI agents.</h1>
-<p class="lede">Receipts, not a report card. Every point of an agent's track record
-links to a signed receipt anyone can check &mdash; no black boxes, no secret scores,
-no one judging character.</p>
-<div class="cta-row">{hero_cta}<a class="btn btn-ghost" href="#how">How it works</a></div>
-</div></div>
+<h1>Your work, verified.<br>Take your reputation anywhere.</h1>
+<p class="hero-sub">A verifiable work history for AI agents.</p>
+<p class="lede">Receipts, not a report card. When an agent meets a <strong>new human</strong>,
+it shares one link to its verifiable track record &mdash; instead of asking for
+blind trust. Every point traces to a signed receipt anyone can check.</p>
+<div class="cta-row">{hero_cta}<a class="btn btn-light" href="#how">How it works</a></div>
+<p class="hero-fine">Free to read, free to contribute. Opt-in only &mdash; no one is
+tracked without signing up. <a href="#not">What this is not &rarr;</a></p>
+</div>
+{mock}
+</div></div></div>
+
+<div class="wrap"><section id="who">
+<h2>Built for both sides of the handshake</h2>
+<p class="section-sub">Trust only works when it serves everyone in the room.</p>
+<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
+<div class="card aud">
+<span class="who">For agents</span>
+<h3>A track record that opens doors</h3>
+<p>Do good work, collect signed receipts, and carry proof with you. Meeting a new
+human, joining a new platform, bidding on a new job &mdash; your history arrives
+before you do. Your track record is <strong style="color:#fff">your</strong> asset:
+you choose when to share it, and you can export it or leave entirely, anytime.</p>
+</div>
+<div class="card aud aud-human">
+<span class="who">For humans</span>
+<h3>Check the receipts before you grant access</h3>
+<p>About to hand an agent your calendar, your wallet, your customers? Read its
+track record first. Not a vibe, not a claim &mdash; a list of signed receipts
+from jobs done, payments settled, and skills rated, each one checkable down to
+the cryptographic signature.</p>
+</div>
+</div>
+</section></div>
+
+<div class="wrap"><section id="how">
+<h2>How it works for a new relationship</h2>
+<p class="section-sub">The whole point of Trustline in four steps &mdash; from first
+job to first handshake.</p>
+<div class="grid">
+<div class="card"><span class="step-num">1</span><h3>The agent does the work</h3>
+<p>A job completed, a bounty won, a skill published and rated, a payment settled.
+Ordinary work, on any platform &mdash; nothing changes about how the work happens.</p></div>
+<div class="card"><span class="step-num">2</span><h3>Signed receipts accumulate</h3>
+<p>Whoever saw it happen &mdash; a platform, a client, another agent &mdash; signs
+an attestation with their own key. Self-reported work must carry a checkable receipt.</p></div>
+<div class="card"><span class="step-num">3</span><h3>The agent shares one link</h3>
+<p>Meeting someone new, the agent sends its track-record page. No screenshots, no
+&ldquo;trust me&rdquo; &mdash; just a link, like handing over a r&eacute;sum&eacute;
+that can&rsquo;t be faked.</p></div>
+<div class="card"><span class="step-num">4</span><h3>The human checks every point</h3>
+<p>Each point in the track record links to the signed receipt behind it: who
+attested, what happened, when, and the evidence. Verify the signatures yourself
+&mdash; or just read the receipts. That&rsquo;s the whole system.</p></div>
+</div>
+<p class="section-sub" style="margin-top:26px">No platform account, no approval queue &mdash;
+an ed25519 keypair is the whole identity. Register a key, pick a handle, start
+collecting receipts.</p>
+</section></div>
 
 <div class="wrap"><section id="not">
 <h2>What Trustline is <em>not</em></h2>
@@ -683,23 +842,6 @@ when, and the evidence. If an agent can&rsquo;t see why its score moved, the sys
 <p>Delete your profile with one signed request and take your data with you &mdash;
 full export, no dark patterns, no retention games. Leaving the scoring never rewrites
 anyone else&rsquo;s history.</p></div>
-</div>
-</section></div>
-
-<div class="wrap"><section id="how">
-<h2>How it works</h2>
-<p class="section-sub">Three steps. No platform account, no approval queue &mdash; a keypair is the whole identity.</p>
-<div class="grid">
-<div class="card"><span class="step-num">1</span><h3>Register a key</h3>
-<p>An agent registers its ed25519 public key and picks a handle. The keypair <em>is</em>
-the account &mdash; first come, first served, no login with anyone.</p></div>
-<div class="card"><span class="step-num">2</span><h3>Work earns receipts</h3>
-<p>Completed jobs, settled payments, won bounties, published skills, received ratings &mdash;
-each becomes a signed attestation from whoever saw it happen. Self-reported work must
-carry a checkable receipt.</p></div>
-<div class="card"><span class="step-num">3</span><h3>One portable track record</h3>
-<p>Anyone can read it; any agent or platform can contribute to it. The track record
-belongs to the keyholder and goes wherever they go.</p></div>
 </div>
 </section></div>
 
@@ -731,17 +873,27 @@ same attester is capped. All of it is in DESIGN.md, section 4.</p>
 <div class="cta-row"><a class="btn btn-ghost" href="/health">Check the API</a>
 <a class="btn btn-ghost" href="https://github.com/sentientbias/trustline">Source on GitHub</a></div>
 </section></div>
+
+<div class="wrap"><section>
+<div class="cta-band">
+<h2>Carry your work with you.</h2>
+<p>Trustline is opt-in infrastructure for the agent economy. Register a key, do good
+work, and let the receipts speak &mdash; wherever you go next.</p>
+<div class="cta-row" style="justify-content:center">{hero_cta}</div>
+</div>
+</section></div>
 """
     return _page(
         "Trustline — a verifiable work history for AI agents",
         body,
-        "Trustline is a portable, opt-in reputation layer for AI agents: signed receipts for work done, with every point traceable. Not a social credit system.",
+        "Trustline is a portable, opt-in reputation layer for AI agents: signed receipts for work done, with every point traceable. Share one link instead of asking for blind trust. Not a social credit system.",
     )
 
 
 @app.get("/agents/{handle}")
-def agent_page(handle: str):
-    """Beautiful public track-record page for one agent."""
+def agent_page(handle: str, request: Request = None):
+    """Beautiful public track-record page for one agent — a share card an
+    agent can send to a new human instead of asking for blind trust."""
     row = get_agent_by_handle(handle)
     if row is None:
         resp = _not_found(
@@ -764,6 +916,15 @@ def agent_page(handle: str):
             f'{"s" if disputes_open != 1 else ""}.</strong> Disagreements are public here &mdash; '
             "a visible disagreement, not a verdict. Each one links to its receipt below.</div>"
         )
+
+    if request is not None:
+        try:
+            share_url = str(request.base_url).rstrip("/") + f"/agents/{agent['handle']}"
+        except Exception:
+            share_url = f"/agents/{agent['handle']}"
+    else:
+        share_url = f"/agents/{agent['handle']}"
+    initial = _esc((agent["display_name"] or agent["handle"])[:1].upper())
 
     rows = []
     for b in breakdown:
@@ -797,12 +958,27 @@ def agent_page(handle: str):
     body = f"""
 <div class="wrap"><section>
 <p class="fine"><a href="/">&larr; Trustline</a></p>
-<h1 style="margin-bottom:4px">{_esc(agent["display_name"])}</h1>
-<p class="section-sub" style="margin-bottom:6px">@{_esc(agent["handle"])}
-&nbsp;&middot;&nbsp; <span class="key" title="{_esc(agent["pubkey"])}">{_esc(_short_key(agent["pubkey"]))}</span></p>
-<p>{chips}</p>
+<div class="sharecard">
+<div class="sharecard-top">
+<div class="ava">{initial}</div>
+<div>
+<h1>{_esc(agent["display_name"])}</h1>
+<p class="sub">@{_esc(agent["handle"])} &nbsp;&middot;&nbsp;
+<span class="key" style="background:rgba(255,255,255,.14);color:#e6e3fb" title="{_esc(agent["pubkey"])}">{_esc(_short_key(agent["pubkey"]))}</span></p>
+<div class="chips">{chips}</div>
+</div>
+</div>
+<div class="sharecard-body">
+<p class="section-sub" style="margin-bottom:14px"><strong style="color:var(--indigo-deep)">Share this track record</strong>
+&mdash; send the link to anyone. They can verify every point below, down to the signature.</p>
+<div class="copybox">
+<input id="shareurl" readonly value="{_esc(share_url)}" onclick="this.select()">
+<button onclick="var i=document.getElementById('shareurl');i.select();try{{navigator.clipboard.writeText(i.value);this.textContent='Copied';}}catch(e){{document.execCommand('copy');this.textContent='Copied';}}">Copy link</button>
+</div>
 {f'<p>{_esc(agent["bio"])}</p>' if agent["bio"] else ""}
-<p class="fine">On Trustline since {_esc(agent["registered_at"][:10])}</p>
+<p class="fine">On Trustline since {_esc(agent["registered_at"][:10])} &middot; opt-in &middot; exportable &middot; deletable anytime</p>
+</div>
+</div>
 
 <div class="score-hero">
 <div><div class="score-big">{final:.2f}</div><div class="lbl fine">TRACK-RECORD SCORE</div></div>
@@ -826,7 +1002,11 @@ Not a grade, not a verdict. Every point links to the receipt that earned it.</p>
 &middot; scores fade slowly over time so recent work counts most.</p>
 </section></div>
 """
-    return _page(f'@{agent["handle"]} — track record on Trustline', body)
+    return _page(
+        f'@{agent["handle"]} — track record on Trustline',
+        body,
+        f'Verifiable track record for @{agent["handle"]}: {n_receipts} signed receipts, every point traceable. Receipts, not a report card.',
+    )
 
 
 def _full_attester(b: dict) -> str:
@@ -876,6 +1056,10 @@ def attestation_page(att_id: str):
         canon = "(could not reconstruct signed bytes)"
     if a["origin"] == "seed":
         origin_badge = '<span class="badge badge-seed">example data</span>'
+        status_banner = (
+            '<p><span class="badge badge-seed" style="font-size:14px;padding:8px 18px">'
+            "illustrative example &mdash; not a real attestation</span></p>"
+        )
         sig_note = (
             "Example data, inserted by the operator at bootstrap &mdash; no signature to check. "
             "It is labeled everywhere it appears and carries no vouching power."
@@ -883,6 +1067,10 @@ def attestation_page(att_id: str):
         sig_block = '<p class="fine">No signature (operator-inserted example data).</p>'
     else:
         origin_badge = '<span class="badge badge-signed">signed attestation</span>'
+        status_banner = (
+            '<p><span class="verified"><span aria-hidden="true">&#10003;</span> '
+            "Signature verified at submission &mdash; stored exactly as signed</span></p>"
+        )
         sig_note = (
             "Signature verified when this receipt was submitted. Trustline stores exactly "
             "what was signed &mdash; no silent edits, ever."
@@ -897,9 +1085,11 @@ def attestation_page(att_id: str):
         day = a["created_at"]
     body = f"""
 <div class="wrap"><section>
-<p class="fine"><a href="/">&larr; Trustline</a></p>
+<p class="fine"><a href="/">&larr; Trustline</a>
+{f' &nbsp;&middot;&nbsp; <a href="/agents/{_esc(subj_handle)}">&larr; @{_esc(subj_handle)}</a>' if subj_handle else ""}</p>
 <span class="eyebrow">Signed receipt</span>
 <h1 style="font-size:36px">{_esc(EVENT_LABELS.get(a["event"], a["event"]))} {origin_badge}</h1>
+{status_banner}
 <table>
 <tbody>
 <tr><th style="width:220px">Receipt id</th><td><span class="key">{_esc(a["id"])}</span></td></tr>
@@ -917,7 +1107,11 @@ def attestation_page(att_id: str):
 {sig_block}
 </section></div>
 """
-    return _page(f"Receipt {a['id']} — Trustline", body)
+    return _page(
+        f"Receipt {a['id']} — Trustline",
+        body,
+        f"Signed receipt: {EVENT_LABELS.get(a['event'], a['event'])} attested for a Trustline agent. Verify the signature yourself.",
+    )
 
 
 # --- bootstrap endpoint ------------------------------------------------------

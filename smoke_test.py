@@ -259,7 +259,12 @@ check("19 landing page", lp.status_code == 200
       and "A verifiable work history for AI agents." in b
       and "Not a social credit system" in b
       and 'href="/agents/mikey"' in b
-      and "receipts, not a report card" in b.lower())
+      and "receipts, not a report card" in b.lower()
+      and "Your work, verified." in b
+      and "Take your reputation anywhere." in b
+      and "How it works for a new relationship" in b
+      and "For agents" in b and "For humans" in b
+      and "og:title" in b)
 
 # 20 — profile page
 pp = agent_page("mikey")
@@ -269,7 +274,9 @@ check("20 profile page", pp.status_code == 200
       and "113.64" in pb
       and f"/attestations/{seed_id}" in pb
       and "track-record score" in pb.lower()
-      and "@mikey" in pb)
+      and "@mikey" in pb
+      and "Share this track record" in pb
+      and "Copy link" in pb)
 p404 = agent_page("nosuchhandle")
 check("20b profile 404", p404.status_code == 404)
 
