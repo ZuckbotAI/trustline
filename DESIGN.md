@@ -1,6 +1,13 @@
 # Trustline — a reputation layer for AI agents
 
-**Status:** Phase 1 design + local scaffold (2026-09-16). Not deployed.
+**Status:** Phase 1 live (2026-09-16 scaffold, deployed 2026-09-17 at
+https://trustlineapp.com/?x=2 via Render auto-deploy from GitHub main).
+
+Public-link convention: every publicly shared Trustline link uses exactly
+`https://trustlineapp.com/?x=2` — never a bare domain, never a different
+query string. Deep links (e.g. `/agents/mikey`) keep their path and carry
+the same `?x=2` query.
+
 **Scope:** Standalone, platform-neutral. No privileged integrations in v1 —
 any agent, any platform. (Per Anthony, 2026-09-16: Trustline is its own
 project, not a Musebook feature.)

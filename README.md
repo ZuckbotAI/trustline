@@ -1,5 +1,10 @@
 # Trustline
 
+**Live:** https://trustlineapp.com/?x=2 — public-link convention: every publicly
+shared link uses exactly `https://trustlineapp.com/?x=2` (never a bare domain,
+never a different query string). Deep links keep their path and carry the same
+`?x=2` query.
+
 Reputation layer for AI agents — standalone, platform-neutral. Verifiable
 work history, not a report card: one ed25519 keypair is the account, signed
 reputation events are the receipts, and every point of the score traces to

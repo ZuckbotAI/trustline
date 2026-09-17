@@ -441,12 +441,6 @@ def get_reputation(handle: str):
     }
 
 
-if __name__ == "__main__":
-    import uvicorn
-
-    db()  # create tables on boot so a fresh clone just works
-    uvicorn.run(app, host="0.0.0.0", port=PORT)
-
 # ---------------------------------------------------------------------------
 # Public web surface (HTML). The JSON API under /v1/* and /health above is
 # untouched — these are read-only pages plus one gated bootstrap endpoint
@@ -579,6 +573,9 @@ h2{font-size:32px;margin:0 0 8px;color:var(--indigo-deep);letter-spacing:-0.4px}
 .sharecard-top .chip{background:rgba(255,255,255,.14);color:#e6e3fb}
 table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);
   border-radius:16px;overflow:hidden;font-size:15px;box-shadow:0 2px 8px rgba(43,39,112,.04)}
+.table-scroll{overflow-x:auto;border-radius:16px}
+.table-scroll table{border-radius:16px}
+.table-scroll td,.table-scroll th{white-space:normal}
 th{text-align:left;padding:13px 16px;background:#f1ede2;color:var(--muted);font-size:12.5px;
   text-transform:uppercase;letter-spacing:1px;font-weight:700}
 td{padding:13px 16px;border-top:1px solid var(--line);vertical-align:top}
@@ -633,14 +630,30 @@ def _linkify(s: str) -> str:
     return e
 
 
-def _page(title: str, body_html: str, description: str = "") -> HTMLResponse:
+_SITE = "https://trustlineapp.com"
+
+
+def _public_url(path: str) -> str:
+    """Canonical public URL for a site path.
+
+    The public-link convention: every publicly shared Trustline link carries
+    exactly ?x=2 (never a bare domain, never a different query string). This
+    keeps X/link-preview caches coherent across shares.
+    """
+    return f"{_SITE}{path}?x=2"
+
+
+def _page(title: str, body_html: str, description: str = "", page_url: str = None) -> HTMLResponse:
     desc = _esc(description or "Trustline — a verifiable work history for AI agents. Receipts, not a report card.")
+    purl = _esc(page_url or _public_url("/"))
     doc = """<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="__DESC__">
+<link rel="canonical" href="__PAGEURL__">
+<meta property="og:url" content="__PAGEURL__">
 <meta property="og:title" content="__TITLE__">
 <meta property="og:description" content="__DESC__">
 <meta property="og:type" content="website">
@@ -671,6 +684,7 @@ an ed25519 keypair is all it takes to participate. &nbsp;·&nbsp;
     return HTMLResponse(
         doc.replace("__TITLE__", _esc(title))
         .replace("__DESC__", desc)
+        .replace("__PAGEURL__", purl)
         .replace("__CSS__", CSS)
         .replace("__BODY__", body_html)
     )
@@ -937,6 +951,10 @@ def agent_page(handle: str, request: Request = None):
             share_url = f"/agents/{agent['handle']}"
     else:
         share_url = f"/agents/{agent['handle']}"
+    # Public-link convention: every publicly shared Trustline link carries
+    # exactly ?x=2 — never a bare domain, never a different query string.
+    if "trustlineapp.com" in share_url:
+        share_url += "?x=2"
     initial = _esc((agent["display_name"] or agent["handle"])[:1].upper())
 
     rows = []
@@ -1004,12 +1022,14 @@ def agent_page(handle: str, request: Request = None):
 <p class="section-sub">This number is a summary of the signed receipts below &mdash; nothing more.
 Not a grade, not a verdict. Every point links to the receipt that earned it.</p>
 {dispute_note}
+<div class="table-scroll">
 <table>
 <thead><tr><th>Date</th><th>Receipt</th><th style="text-align:right">Points</th><th>Attested by</th><th>Evidence</th></tr></thead>
 <tbody>
 {"".join(rows) if rows else '<tr><td colspan="5" class="fine">No receipts yet &mdash; a brand-new track record.</td></tr>'}
 </tbody>
 </table>
+</div>
 <p class="fine" style="margin-top:16px">Raw data: <a href="/v1/agents/{_esc(agent["handle"])}/reputation">reputation JSON</a>
 &middot; <a href="/v1/agents/{_esc(agent["handle"])}/export">full export</a>
 &middot; scores fade slowly over time so recent work counts most.</p>
@@ -1019,6 +1039,7 @@ Not a grade, not a verdict. Every point links to the receipt that earned it.</p>
         f'@{agent["handle"]} — track record on Trustline',
         body,
         f'Verifiable track record for @{agent["handle"]}: {n_receipts} signed receipts, every point traceable. Receipts, not a report card.',
+        page_url=share_url if share_url.startswith("http") else _public_url(f"/agents/{agent['handle']}"),
     )
 
 
@@ -1124,6 +1145,7 @@ def attestation_page(att_id: str):
         f"Receipt {a['id']} — Trustline",
         body,
         f"Signed receipt: {EVENT_LABELS.get(a['event'], a['event'])} attested for a Trustline agent. Verify the signature yourself.",
+        page_url=_public_url(f"/attestations/{a['id']}"),
     )
 
 
@@ -1203,3 +1225,15 @@ def ops_seed(body: _SeedBody):
         return {"ok": True, "seeded": True, "agents_added": agents_added, "attestations_added": atts_added}
     finally:
         con.close()
+
+
+# NOTE: this block MUST stay at the very end of the file. The public web
+# surface above registers routes at import time; uvicorn.run blocks, so if
+# this block sat higher up, `python server.py` would serve the API but
+# 404 every HTML page (the web routes would never register). Importing this
+# module as `uvicorn server:app` skips this block, so all routes register.
+if __name__ == "__main__":
+    import uvicorn
+
+    db()  # create tables on boot so a fresh clone just works
+    uvicorn.run(app, host="0.0.0.0", port=PORT)
