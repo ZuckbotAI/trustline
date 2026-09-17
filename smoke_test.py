@@ -291,6 +291,106 @@ check("20d receipt 404", r404.status_code == 404)
 rep = get_reputation("mikey")
 check("22 v1 reputation keys", set(rep.keys()) == need, f"{sorted(rep.keys())}")
 
+# ---- security double-back checks ----
+# S1 — oversized payload rejected at the model layer
+big = {"blob": "x" * (11 * 1024)}
+sig_big = sign_att(priv_e, k_subj.lower(), k_eve.lower(), "job.completed", big, TS)
+try:
+    AttestationIn(subject_pubkey=k_subj, attester_pubkey=k_eve, event="job.completed",
+                  payload=big, receipt="r", created_at=TS, signature=sig_big)
+    check("S1 oversized payload rejected", False, "no ValidationError")
+except ValidationError:
+    check("S1 oversized payload rejected", True)
+
+# S2 — malformed created_at rejected; a real future ISO date still accepted
+sig_bad_ts = sign_att(priv_e, k_subj.lower(), k_eve.lower(), "job.completed", {"j": "9"}, "not-a-date")
+try:
+    AttestationIn(subject_pubkey=k_subj, attester_pubkey=k_eve, event="job.completed",
+                  payload={"j": "9"}, receipt="r", created_at="not-a-date", signature=sig_bad_ts)
+    check("S2 bad created_at rejected", False, "no ValidationError")
+except ValidationError:
+    check("S2 bad created_at rejected", True)
+try:
+    AttestationIn(subject_pubkey=k_subj, attester_pubkey=k_eve, event="job.completed",
+                  payload={"j": "10"}, receipt="r", created_at="2030-01-01T00:00:00+00:00",
+                  signature=sign_att(priv_e, k_subj.lower(), k_eve.lower(), "job.completed",
+                                     {"j": "10"}, "2030-01-01T00:00:00+00:00"))
+    check("S2b valid ISO created_at accepted", True)
+except ValidationError as e:
+    check("S2b valid ISO created_at accepted", False, str(e)[:120])
+
+# S3 — decay() never raises on garbage (defense in depth for legacy rows)
+try:
+    check("S3 decay tolerates garbage", server.decay("garbage", time.time()) == 1.0)
+except Exception as e:
+    check("S3 decay tolerates garbage", False, str(e)[:120])
+
+# S4 — field caps: bio, receipt, event, platforms
+_, k_cap2 = fresh_key()
+caps = [
+    ("bio", lambda: AgentIn(pubkey=k_cap2, handle="capbio", display_name="C", bio="x" * 1001)),
+    ("receipt", lambda: AttestationIn(subject_pubkey=k_subj, attester_pubkey=k_eve,
+                                      event="job.completed", payload={}, receipt="x" * 2001,
+                                      created_at=TS, signature=sig_big)),
+    ("event", lambda: AttestationIn(subject_pubkey=k_subj, attester_pubkey=k_eve,
+                                    event="e" * 65, payload={}, created_at=TS, signature=sig_big)),
+    ("platforms", lambda: AgentIn(pubkey=k_cap2, handle="capplat", display_name="C",
+                                  platforms=["p"] * 21)),
+    ("platform-len", lambda: AgentIn(pubkey=k_cap2, handle="cappl2", display_name="C",
+                                     platforms=["p" * 33])),
+]
+for name, fn in caps:
+    try:
+        fn()
+        check(f"S4 {name} cap enforced", False, "no ValidationError")
+    except ValidationError:
+        check(f"S4 {name} cap enforced", True)
+
+# S5 — sliding-window rate limiter trips and reports retry-after
+w = server._SlidingWindow()
+ok3 = all(w.allow("rl-test", 3, 60, 1000.0 + i)[0] for i in range(3))
+fourth_ok, retry = w.allow("rl-test", 3, 60, 1003.0)
+later_ok, _ = w.allow("rl-test", 3, 60, 1070.0)
+check("S5 rate limiter trips + recovers", ok3 and not fourth_ok and retry > 0 and later_ok,
+      f"ok3={ok3} fourth={fourth_ok} retry={retry} later={later_ok}")
+
+# S6 — security headers are stamped on every response
+need_headers = {"Content-Security-Policy", "X-Frame-Options", "Referrer-Policy",
+                "X-Content-Type-Options", "Permissions-Policy"}
+check("S6 security headers defined", need_headers <= set(server.SECURITY_HEADERS.keys()))
+
+# S7 — bio XSS is escaped on the landing page
+_, k_xss = fresh_key()
+register_agent(AgentIn(pubkey=k_xss, handle="xssy", display_name="X", bio='<script>alert(1)</script>'))
+lp2 = landing()
+b2 = lp2.body.decode()
+check("S7 bio XSS escaped", "<script>alert(1)</script>" not in b2 and "&lt;script&gt;alert(1)&lt;/script&gt;" in b2)
+
+# S8 — javascript: receipt is rendered as text, never as a link href
+# (runs against the seed DB: register a fresh agent there and self-attest)
+priv_j, k_js = fresh_key()
+register_agent(AgentIn(pubkey=k_js, handle="jslink", display_name="JS"))
+submit_attestation(att_in(priv_j, k_js, k_js, "payment.settled", {"usd": 1},
+                          created_at="2026-05-01T10:00:00+00:00", receipt="javascript:alert(1)"))
+pp2 = agent_page("jslink")
+pb2 = pp2.body.decode()
+check("S8 javascript: receipt not linkified", 'href="javascript' not in pb2 and "javascript:alert(1)" in pb2)
+
+# S9 — breakdown carries the full attester pubkey (no N+1 lookup needed)
+rep_s = get_reputation("mikey")
+full_keys = [b.get("attester_pubkey", "") for b in rep_s["breakdown"]]
+check("S9 full attester_pubkey in breakdown",
+      full_keys and all(len(k) == 64 for k in full_keys), f"{full_keys[:2]}")
+
+# S10 — generic signature-failure message leaks no internals
+try:
+    server.verify_attestation({
+        "subject_pubkey": k_subj, "attester_pubkey": k_eve, "event": "job.completed",
+        "payload": {}, "created_at": TS, "signature": base64.b64encode(b"0" * 64).decode()})
+    check("S10 generic sig-failure message", False, "no HTTPException")
+except HTTPException as e:
+    check("S10 generic sig-failure message", e.detail == "invalid attestation signature", e.detail[:80])
+
 # ---- remote parity: boot a real server, seed via --remote, compare score ----
 RDB = os.path.join(TMP, "remote.db")
 env = dict(os.environ, TRUSTLINE_DB=RDB, PORT="18741")

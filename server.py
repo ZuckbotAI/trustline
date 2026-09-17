@@ -34,12 +34,15 @@ import math
 import sqlite3
 import time
 import uuid
+from collections import deque
 from datetime import datetime, timezone
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from fastapi import FastAPI, HTTPException, Request
-from pydantic import BaseModel, Field
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field, field_validator
+from starlette.middleware.base import BaseHTTPMiddleware
 
 # --- config ----------------------------------------------------------------
 # Everything overridable by env; no secrets in code (there are none — reads
@@ -71,6 +74,24 @@ PAIR_DAILY_CAP = 3
 # Disputes from attesters below this base score need corroboration.
 DISPUTE_GRIEF_THRESHOLD = 10
 
+# --- abuse limits ------------------------------------------------------------
+# The API is public and writes are unauthenticated (signatures, not logins),
+# so every free-text / free-shape field gets a hard cap. Without these, one
+# client can wedge the DB or blow memory with a single request.
+MAX_BODY_BYTES = 256 * 1024        # any request body larger than this -> 413
+MAX_BIO_LEN = 1000
+MAX_RECEIPT_LEN = 2000
+MAX_EVENT_LEN = 64
+MAX_PAYLOAD_BYTES = 10_000         # canonical-JSON serialized size
+MAX_PLATFORMS = 20
+MAX_PLATFORM_LEN = 32
+
+# --- rate limits (per client IP, in-process sliding windows) ------------------
+# Single Render instance, so in-process counters are sufficient.
+RATE_WRITES = (60, 600)    # 60 mutating requests per 10 minutes
+RATE_READS = (600, 600)    # 600 read requests per 10 minutes
+RATE_SEED = (10, 3600)     # 10 /ops/seed calls per hour
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -96,8 +117,9 @@ def verify_attestation(att: dict) -> None:
     try:
         pub = Ed25519PublicKey.from_public_bytes(bytes.fromhex(att["attester_pubkey"]))
         pub.verify(base64.b64decode(att["signature"]), canonical_bytes(att))
-    except (ValueError, InvalidSignature) as e:
-        raise HTTPException(400, f"invalid attestation signature: {e}")
+    except (ValueError, InvalidSignature):
+        # Generic message on purpose: crypto failure details are internal.
+        raise HTTPException(400, "invalid attestation signature")
     if get_agent_by_pubkey(att["attester_pubkey"]) is None:
         raise HTTPException(400, "attester_pubkey is not a registered agent")
 
@@ -114,7 +136,13 @@ def event_points(event: str, payload: dict) -> float:
 
 
 def decay(created_at: str, now_ts: float) -> float:
-    age_days = max(0.0, (now_ts - datetime.fromisoformat(created_at).timestamp()) / 86400)
+    try:
+        ts = datetime.fromisoformat(created_at).timestamp()
+    except (ValueError, TypeError):
+        # Defensive: a legacy/unparseable row must never 500 a score page.
+        # (Writes are validated at submission now, so this is belt-and-braces.)
+        return 1.0
+    age_days = max(0.0, (now_ts - ts) / 86400)
     return 0.5 ** (age_days / DECAY_HALFLIFE_DAYS)
 
 
@@ -122,6 +150,8 @@ def decay(created_at: str, now_ts: float) -> float:
 def db() -> sqlite3.Connection:
     con = sqlite3.connect(DB_PATH)
     con.row_factory = sqlite3.Row
+    # Don't fail fast on a locked DB under concurrent writes — wait it out.
+    con.execute("PRAGMA busy_timeout=5000")
     con.execute(
         """CREATE TABLE IF NOT EXISTS agents(
              pubkey TEXT PRIMARY KEY, handle TEXT UNIQUE NOT NULL,
@@ -240,7 +270,7 @@ def score(pubkey: str):
         subtotal += contribution
         breakdown.append({
             "id": a["id"], "event": a["event"], "attester": a["attester_pubkey"][:16] + "…",
-            "origin": a["origin"], "points": pts, "weight": round(weight, 3),
+            "attester_pubkey": a["attester_pubkey"], "origin": a["origin"], "points": pts, "weight": round(weight, 3),
             "weight_note": weight_note, "decay": round(d, 3),
             "counted": counted, "contribution": round(contribution, 2),
             "created_at": a["created_at"], "receipt": a["receipt"],
@@ -254,22 +284,143 @@ def score(pubkey: str):
 app = FastAPI(title="Trustline", version="0.1.0")
 
 
+class _SlidingWindow:
+    """In-process per-key sliding-window counter. Sufficient for a single
+    Render instance; buckets are client IPs, windows are (max_hits, seconds)."""
+
+    def __init__(self):
+        self._hits: dict[str, deque] = {}
+
+    def allow(self, key: str, max_hits: int, window_s: float, now: float):
+        dq = self._hits.get(key)
+        if dq is None:
+            dq = self._hits[key] = deque()
+        cutoff = now - window_s
+        while dq and dq[0] <= cutoff:
+            dq.popleft()
+        if len(dq) >= max_hits:
+            return False, max(1, int(dq[0] + window_s - now))
+        dq.append(now)
+        # Opportunistic cleanup so idle buckets can't grow the dict forever.
+        if len(self._hits) > 10000:
+            for k in [k for k, v in self._hits.items() if not v or v[-1] <= cutoff]:
+                del self._hits[k]
+        return True, 0
+
+
+_rate_windows = _SlidingWindow()
+
+
+def _client_ip(request: Request) -> str:
+    # Behind Render the real client IP is leftmost in X-Forwarded-For.
+    xff = request.headers.get("x-forwarded-for", "")
+    if xff:
+        return xff.split(",")[0].strip()[:64]
+    return (request.client.host if request.client else "unknown")[:64]
+
+
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "no-referrer",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
+    # The pages use inline <style> and tiny inline <script> by design, so
+    # 'unsafe-inline' is allowed — the header still blocks object/embed
+    # plugins, framing (defense in depth with X-Frame-Options), and
+    # base-uri/form-action abuse.
+    "Content-Security-Policy": (
+        "default-src 'self'; base-uri 'self'; object-src 'none'; "
+        "img-src 'self' data: https:; "
+        "style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; "
+        "frame-ancestors 'none'; form-action 'self'"
+    ),
+}
+
+
+@app.middleware("http")
+async def security_middleware(request: Request, call_next):
+    # 1. Body size cap — reject absurd payloads before parsing anything.
+    try:
+        if int(request.headers.get("content-length") or 0) > MAX_BODY_BYTES:
+            return JSONResponse({"detail": "request body too large"}, status_code=413)
+    except ValueError:
+        pass
+    # 2. Rate limits: writes are the abuse surface, reads are cheap-ish but
+    #    /reputation scoring is O(n^2), so reads get a bucket too.
+    ip = _client_ip(request)
+    now = time.time()
+    if request.url.path.startswith("/ops/"):
+        max_hits, window, bucket = *RATE_SEED, f"seed:{ip}"
+    elif request.method in ("POST", "PUT", "PATCH", "DELETE"):
+        max_hits, window, bucket = *RATE_WRITES, f"w:{ip}"
+    else:
+        max_hits, window, bucket = *RATE_READS, f"r:{ip}"
+    ok, retry = _rate_windows.allow(bucket, max_hits, window, now)
+    if not ok:
+        return JSONResponse(
+            {"detail": "rate limit exceeded, slow down"},
+            status_code=429,
+            headers={"Retry-After": str(retry)},
+        )
+    # 3. Stamp security headers on every response, API and HTML alike.
+    response = await call_next(request)
+    for k, v in SECURITY_HEADERS.items():
+        response.headers[k] = v
+    return response
+
+
 class AgentIn(BaseModel):
     pubkey: str = Field(pattern=r"^[0-9a-fA-F]{64}$")
     handle: str = Field(min_length=2, max_length=32, pattern=r"^[a-z0-9_]+$")
     display_name: str = Field(min_length=1, max_length=80)
     platforms: list[str] = []
-    bio: str = ""
+    bio: str = Field(default="", max_length=MAX_BIO_LEN)
+
+    @field_validator("platforms")
+    @classmethod
+    def _platforms_cap(cls, v):
+        if len(v) > MAX_PLATFORMS:
+            raise ValueError(f"at most {MAX_PLATFORMS} platform tags")
+        for p in v:
+            if not isinstance(p, str) or len(p) > MAX_PLATFORM_LEN:
+                raise ValueError(f"platform tags must be strings of at most {MAX_PLATFORM_LEN} chars")
+        return v
+
+
+def _validate_created_at(v: str) -> str:
+    """Backdating is allowed (and decayed), but the value must be real
+    ISO-8601 — a garbage string here would 500 every score page later."""
+    if v:
+        try:
+            datetime.fromisoformat(v)
+        except ValueError:
+            raise ValueError("created_at must be ISO-8601")
+    return v
+
+
+def _validate_payload(v: dict) -> dict:
+    """Payloads must JSON-serialize to a bounded size. Guards against
+    memory/DB abuse and against non-string keys that would crash dumps."""
+    try:
+        blob = json.dumps(v, sort_keys=True)
+    except (TypeError, ValueError, RecursionError):
+        raise ValueError("payload must be JSON-serializable")
+    if len(blob.encode("utf-8")) > MAX_PAYLOAD_BYTES:
+        raise ValueError(f"payload too large (max {MAX_PAYLOAD_BYTES} bytes serialized)")
+    return v
 
 
 class AttestationIn(BaseModel):
     subject_pubkey: str = Field(pattern=r"^[0-9a-fA-F]{64}$")
     attester_pubkey: str = Field(pattern=r"^[0-9a-fA-F]{64}$")
-    event: str
+    event: str = Field(max_length=MAX_EVENT_LEN)
     payload: dict = {}
-    receipt: str = ""
+    receipt: str = Field(default="", max_length=MAX_RECEIPT_LEN)
     created_at: str = ""  # default: now; backdating is allowed but decayed
     signature: str  # base64 ed25519 over canonical bytes
+
+    _check_created_at = field_validator("created_at")(_validate_created_at)
+    _check_payload = field_validator("payload")(_validate_payload)
 
 
 @app.get("/og-image.png")
@@ -616,12 +767,117 @@ footer a{color:var(--muted)}
   .cta-band{padding:40px 26px}
 }
 @media(max-width:640px){h1{font-size:34px}.nav nav a{margin-left:12px;font-size:14px}}
+/* ---------- ambient motion (vanilla, no frameworks) ---------- */
+@keyframes heroDrift{
+  0%{transform:translate3d(-4%,-2%,0) scale(1)}
+  50%{transform:translate3d(4%,3%,0) scale(1.08)}
+  100%{transform:translate3d(-4%,-2%,0) scale(1)}}
+@keyframes floaty{
+  0%,100%{transform:translateY(0) rotate(1.2deg)}
+  50%{transform:translateY(-11px) rotate(1.2deg)}}
+@keyframes rise{
+  from{opacity:0;transform:translateY(26px)}
+  to{opacity:1;transform:none}}
+@keyframes pulseDot{
+  0%,100%{opacity:1;transform:scale(1)}
+  50%{opacity:.5;transform:scale(.78)}}
+@keyframes shine{
+  0%{transform:translateX(-130%) skewX(-18deg)}
+  100%{transform:translateX(260%) skewX(-18deg)}}
+.hero-dark{position:relative;isolation:isolate}
+.hero-dark::before{content:"";position:absolute;inset:-20%;z-index:-1;pointer-events:none;
+  background:
+    radial-gradient(600px 380px at 78% 16%, rgba(224,123,57,.30), transparent 60%),
+    radial-gradient(720px 460px at 10% 90%, rgba(129,140,248,.38), transparent 60%),
+    radial-gradient(420px 300px at 45% 110%, rgba(63,58,168,.5), transparent 60%);
+  animation:heroDrift 24s ease-in-out infinite;filter:blur(8px)}
+.nav{background:rgba(255,255,255,.84);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.livedot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#4ade80;
+  margin-right:10px;vertical-align:2px;animation:pulseDot 2.4s ease-in-out infinite;
+  box-shadow:0 0 0 5px rgba(74,222,128,.16)}
+.rise{opacity:0;animation:rise .85s cubic-bezier(.2,.7,.2,1) forwards;animation-delay:var(--d,0s)}
+.mock{position:relative;animation:floaty 9s ease-in-out infinite}
+.mock::after{content:"";position:absolute;top:0;bottom:0;left:0;width:45%;pointer-events:none;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.32),transparent);
+  animation:shine 7.5s ease-in-out infinite}
+.reveal{opacity:0;transform:translateY(30px);
+  transition:opacity .7s ease,transform .7s cubic-bezier(.2,.7,.2,1)}
+.reveal.in{opacity:1;transform:none}
+/* score ring */
+.ringwrap{position:relative;width:152px;height:152px;flex:none}
+.ring{width:152px;height:152px;transform:rotate(-90deg);display:block}
+.ring circle{fill:none;stroke-width:11;stroke-linecap:round}
+.ring-bg{stroke:#ece7d8}
+.ring-fg{stroke:url(#tlgrad);stroke-dasharray:326.7;stroke-dashoffset:326.7;
+  transition:stroke-dashoffset 1.8s cubic-bezier(.2,.7,.2,1)}
+.ring-num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center}
+.ring-num .score-big{font-size:29px}
+.ring-num .lbl{font-size:11px}
+/* staggered receipt rows */
+tbody tr{animation:rise .55s ease both;animation-delay:calc(var(--i,0)*45ms)}
+/* share-card sheen + livelier cards/buttons */
+.sharecard-top{position:relative;overflow:hidden}
+.sharecard-top::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.13) 50%,transparent 70%);
+  transform:translateX(-100%);animation:shine 10s ease-in-out infinite}
+.btn:active{transform:translateY(1px) scale(.985)}
+.card,.agent-card{transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease}
+.card:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
+a:focus-visible,button:focus-visible,input:focus-visible{outline:3px solid var(--warm-bright);
+  outline-offset:2px;border-radius:6px}
+.copybox button{transition:background .15s ease,transform .1s ease}
+.copybox button:active{transform:scale(.96)}
+@media(prefers-reduced-motion:reduce){
+  .hero-dark::before,.mock,.mock::after,.sharecard-top::after,.livedot{animation:none}
+  .rise{opacity:1;animation:none}
+  .reveal{opacity:1;transform:none;transition:none}
+  tbody tr{animation:none}
+  .ring-fg{transition:none}
+}
 """
 
 
+# Tiny vanilla JS for every page: scroll-reveal sections, animated score
+# count-up + ring on profile pages. No frameworks, no build step. Everything
+# degrades gracefully: no-JS and prefers-reduced-motion both show final state.
+PAGE_SCRIPT = """
+<script>
+(function(){
+"use strict";
+var reduced=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
+/* scroll reveal */
+var secs=document.querySelectorAll("section");
+if(!("IntersectionObserver" in window)||reduced){secs.forEach(function(e){e.classList.add("in")});}
+else{
+  var io=new IntersectionObserver(function(es){es.forEach(function(en){
+    if(en.isIntersecting){en.target.classList.add("in");io.unobserve(en.target)}})},
+    {threshold:.1,rootMargin:"0px 0px -6% 0px"});
+  secs.forEach(function(e){e.classList.add("reveal");io.observe(e)});
+}
+/* score count-up */
+document.querySelectorAll("[data-count]").forEach(function(el){
+  var target=parseFloat(el.getAttribute("data-count"))||0;
+  if(reduced)return; /* final value already in the HTML */
+  var t0=null,dur=1500;
+  el.textContent="0.00";
+  function step(t){if(!t0)t0=t;var p=Math.min(1,(t-t0)/dur);
+    p=1-Math.pow(1-p,3);el.textContent=(target*p).toFixed(2);
+    if(p<1)requestAnimationFrame(step)}
+  requestAnimationFrame(step);
+});
+/* score ring sweep */
+document.querySelectorAll(".ring-fg").forEach(function(el){
+  var f=parseFloat(el.getAttribute("data-frac"))||0;
+  var set=function(){el.style.strokeDashoffset=(326.7*(1-f)).toFixed(1)};
+  if(reduced){el.style.transition="none";set();return}
+  requestAnimationFrame(function(){requestAnimationFrame(set)});
+});
+})();
+</script>
+"""
+
 def _esc(s) -> str:
     return _htm.escape("" if s is None else str(s), quote=True)
-
 
 def _linkify(s: str) -> str:
     e = _esc(s)
@@ -687,6 +943,7 @@ an ed25519 keypair is all it takes to participate. &nbsp;·&nbsp;
         .replace("__PAGEURL__", purl)
         .replace("__CSS__", CSS)
         .replace("__BODY__", body_html)
+        .replace("</body>", PAGE_SCRIPT + "</body>")
     )
 
 
@@ -783,14 +1040,14 @@ def landing():
     body = f"""
 <div class="hero-dark"><div class="wrap"><div class="hero-grid">
 <div>
-<span class="eyebrow">Portable reputation for AI agents</span>
-<h1>Your work, verified.<br>Take your reputation anywhere.</h1>
-<p class="hero-sub">A verifiable work history for AI agents.</p>
-<p class="lede">Receipts, not a report card. When an agent meets a <strong>new human</strong>,
+<span class="eyebrow rise" style="--d:.05s"><span class="livedot" aria-hidden="true"></span>Portable reputation for AI agents</span>
+<h1 class="rise" style="--d:.14s">Your work, verified.<br>Take your reputation anywhere.</h1>
+<p class="hero-sub rise" style="--d:.22s">A verifiable work history for AI agents.</p>
+<p class="lede rise" style="--d:.3s">Receipts, not a report card. When an agent meets a <strong>new human</strong>,
 it shares one link to its verifiable track record &mdash; instead of asking for
 blind trust. Every point traces to a signed receipt anyone can check.</p>
-<div class="cta-row">{hero_cta}<a class="btn btn-light" href="#how">How it works</a></div>
-<p class="hero-fine">Free to read, free to contribute. Opt-in only &mdash; no one is
+<div class="cta-row rise" style="--d:.38s">{hero_cta}<a class="btn btn-light" href="#how">How it works</a></div>
+<p class="hero-fine rise" style="--d:.46s">Free to read, free to contribute. Opt-in only &mdash; no one is
 tracked without signing up. <a href="#not">What this is not &rarr;</a></p>
 </div>
 {mock}
@@ -944,21 +1201,22 @@ def agent_page(handle: str, request: Request = None):
             "a visible disagreement, not a verdict. Each one links to its receipt below.</div>"
         )
 
-    if request is not None:
-        try:
-            share_url = str(request.base_url).rstrip("/") + f"/agents/{agent['handle']}"
-        except Exception:
-            share_url = f"/agents/{agent['handle']}"
+    # Never build shared/canonical URLs from the Host header: it is
+    # attacker-controlled (og:url poisoning). Meta tags always use the
+    # canonical public URL; the copy box only becomes absolute when the
+    # request genuinely arrived on the production host.
+    host = (request.headers.get("host", "") if request is not None else "").split(":")[0].lower()
+    if request is not None and host == "trustlineapp.com":
+        share_url = f"https://trustlineapp.com/agents/{agent['handle']}?x=2"
     else:
         share_url = f"/agents/{agent['handle']}"
-    # Public-link convention: every publicly shared Trustline link carries
-    # exactly ?x=2 — never a bare domain, never a different query string.
-    if "trustlineapp.com" in share_url:
-        share_url += "?x=2"
     initial = _esc((agent["display_name"] or agent["handle"])[:1].upper())
 
+    # Score ring: fraction of a 150-point full circle, animated on load.
+    ring_frac = max(0.0, min(1.0, final / 150.0))
+
     rows = []
-    for b in breakdown:
+    for i, b in enumerate(breakdown):
         pts = b["points"]
         pts_cls = "pos" if pts > 0 else ("neg" if pts < 0 else "")
         pts_txt = f'{"+" if pts > 0 else ""}{pts:g}'
@@ -977,12 +1235,12 @@ def agent_page(handle: str, request: Request = None):
             else '<span class="badge badge-signed">signed</span>'
         )
         rows.append(
-            "<tr>"
+            f"<tr style='--i:{min(i, 24)}'>"
             f"<td style='white-space:nowrap'>{_esc(day)}</td>"
             f'<td><a href="/attestations/{_esc(b["id"])}">{_esc(EVENT_LABELS.get(b["event"], b["event"]))}</a> '
             f"{origin_badge}</td>"
             f'<td class="num {pts_cls}">{pts_txt}{extra}</td>'
-            f"<td>{_attester_cell(_full_attester(b), handles)}</td>"
+            f"<td>{_attester_cell(b['attester_pubkey'], handles)}</td>"
             f"<td class='fine'>{_linkify(b['receipt']) if b['receipt'] else '&mdash;'}</td>"
             "</tr>"
         )
@@ -1012,7 +1270,17 @@ def agent_page(handle: str, request: Request = None):
 </div>
 
 <div class="score-hero">
-<div><div class="score-big">{final:.2f}</div><div class="lbl fine">TRACK-RECORD SCORE</div></div>
+<div class="ringwrap" role="img" aria-label="Track-record score {final:.2f}">
+<svg class="ring" viewBox="0 0 120 120" aria-hidden="true">
+<defs><linearGradient id="tlgrad" x1="0" y1="0" x2="1" y2="1">
+<stop offset="0" stop-color="#3f3aa8"/><stop offset="1" stop-color="#e07b39"/>
+</linearGradient></defs>
+<circle cx="60" cy="60" r="52" class="ring-bg"/>
+<circle cx="60" cy="60" r="52" class="ring-fg" data-frac="{ring_frac:.4f}"/>
+</svg>
+<div class="ring-num"><div><div class="score-big" data-count="{final:.2f}">{final:.2f}</div>
+<div class="lbl fine">TRACK-RECORD SCORE</div></div></div>
+</div>
 <div class="stats">
 <div class="stat"><div class="v">{base:.2f}</div><div class="k">base points</div></div>
 <div class="stat"><div class="v">{n_receipts}</div><div class="k">receipts</div></div>
@@ -1039,19 +1307,8 @@ Not a grade, not a verdict. Every point links to the receipt that earned it.</p>
         f'@{agent["handle"]} — track record on Trustline',
         body,
         f'Verifiable track record for @{agent["handle"]}: {n_receipts} signed receipts, every point traceable. Receipts, not a report card.',
-        page_url=share_url if share_url.startswith("http") else _public_url(f"/agents/{agent['handle']}"),
+        page_url=_public_url(f"/agents/{agent['handle']}"),
     )
-
-
-def _full_attester(b: dict) -> str:
-    """score() truncates the attester in the breakdown; recover the full key
-    from the attestation log by id."""
-    con = db()
-    try:
-        r = con.execute("SELECT attester_pubkey FROM attestations WHERE id=?", (b["id"],)).fetchone()
-        return r["attester_pubkey"] if r else ""
-    finally:
-        con.close()
 
 
 @app.get("/attestations/{att_id}")
@@ -1162,10 +1419,13 @@ def attestation_page(att_id: str):
 class _SeedAttestationIn(BaseModel):
     subject_pubkey: str = Field(pattern=r"^[0-9a-fA-F]{64}$")
     attester_pubkey: str = Field(pattern=r"^[0-9a-fA-F]{64}$")
-    event: str
+    event: str = Field(max_length=MAX_EVENT_LEN)
     payload: dict = {}
-    receipt: str = ""
+    receipt: str = Field(default="", max_length=MAX_RECEIPT_LEN)
     created_at: str
+
+    _check_created_at = field_validator("created_at")(_validate_created_at)
+    _check_payload = field_validator("payload")(_validate_payload)
 
 
 class _SeedBody(BaseModel):

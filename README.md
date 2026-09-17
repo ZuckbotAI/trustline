@@ -95,6 +95,35 @@ Attestation signature = ed25519 over `trustline-v1\n` + canonical JSON
 - `TRUSTLINE_DB` — SQLite path (default `./trustline.db`)
 - `TRUSTLINE_PORT` — port (default `8741`)
 
+## Security
+
+Second-pass review (2026-09-17). The write API is public and signature-based
+(no logins), so the adversarial assumptions are: every input is hostile,
+every client may be a spammer.
+
+- **Input caps:** `bio` ≤ 1000, `receipt` ≤ 2000, event names ≤ 64 chars,
+  payloads ≤ 10 KB serialized JSON (must be JSON-serializable), platform
+  tags ≤ 20 × 32 chars. Any request body > 256 KB is rejected with 413.
+- **Timestamp validation:** `created_at` must parse as ISO-8601 at submission;
+  scoring additionally tolerates legacy garbage (counts it, never 500s).
+- **Rate limits** (per IP, in-process sliding windows): 60 writes / 10 min,
+  600 reads / 10 min, 10 `/ops/seed` calls / hour — 429 with `Retry-After`.
+- **Headers on every response:** CSP (inline styles/scripts allowed by
+  design; framing, plugins, base-uri abuse blocked), `X-Frame-Options: DENY`,
+  `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`,
+  minimal `Permissions-Policy`.
+- **No Host-header trust:** canonical/OG URLs always use
+  `https://trustlineapp.com`; the share-link box only goes absolute on the
+  production host.
+- **Crypto failures return a generic 400** — no exception internals leak.
+- **SQL is fully parameterized**; all HTML rendering escapes user content
+  (`_esc`/`_linkify`, which only links `http(s)` URLs).
+- **Pinned dependencies** in `requirements.txt` (exact versions).
+- SQLite `busy_timeout=5000` so concurrent writes wait instead of erroring.
+
+No secrets in code — reads are public, writes are authorized by ed25519
+attester signatures. There is nothing to rotate.
+
 ## Not in Phase 1
 
 Key rotation, private attestations, paid writes, privileged platform
