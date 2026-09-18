@@ -622,6 +622,24 @@ body{margin:0;background:var(--paper);color:var(--ink);
 .mark{width:16px;height:16px;border-radius:5px;background:linear-gradient(135deg,var(--indigo),var(--warm));display:inline-block}
 .nav nav a{margin-left:22px;color:var(--muted);text-decoration:none;font-size:15px;font-weight:600}
 .nav nav a:hover{color:var(--indigo)}
+/* ---------- sidebar layout (Reddit-style left rail) ---------- */
+.side-toggle{display:none;flex:none;width:42px;height:42px;margin-right:12px;padding:11px 10px;
+  background:transparent;border:1px solid var(--line);border-radius:10px;cursor:pointer}
+.side-toggle span{display:block;height:2.5px;background:var(--ink);border-radius:2px;margin:4px 0}
+.layout{display:flex;align-items:stretch;max-width:1440px;margin:0 auto}
+.side{width:252px;flex:none;position:sticky;top:64px;align-self:flex-start;
+  max-height:calc(100vh - 64px);overflow-y:auto;background:var(--paper);
+  border-right:1px solid var(--line);padding:26px 16px 40px}
+.side-group{margin-bottom:28px}
+.side-label{font-size:11.5px;font-weight:800;letter-spacing:1.8px;text-transform:uppercase;
+  color:var(--muted);margin:0 10px 10px}
+.side-link{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;
+  color:var(--ink);text-decoration:none;font-size:15.5px;font-weight:600}
+.side-link:hover{background:#efece2;color:var(--indigo-deep)}
+.side-link.active{background:var(--indigo-deep);color:#fff}
+.content{flex:1;min-width:0}
+.side-backdrop{display:none}
+section[id]{scroll-margin-top:84px}
 /* ---------- hero ---------- */
 .hero-dark{background:
   radial-gradient(1100px 480px at 85% -10%, rgba(224,123,57,.28) 0%, transparent 60%),
@@ -766,7 +784,19 @@ footer a{color:var(--muted)}
   .sharecard-top{padding:26px 22px}.sharecard-body{padding:22px}
   .cta-band{padding:40px 26px}
 }
-@media(max-width:640px){h1{font-size:34px}.nav nav a{margin-left:12px;font-size:14px}}
+@media(max-width:960px){
+  .layout{display:block}
+  .side{position:fixed;top:0;left:0;bottom:0;width:288px;max-height:none;z-index:120;
+    background:var(--card);border-right:none;box-shadow:var(--shadow-lg);
+    transform:translateX(-105%);transition:transform .25s ease;padding-top:22px}
+  .side.open{transform:none}
+  .side-toggle{display:block}
+  .side-backdrop{display:block;position:fixed;inset:0;background:rgba(30,27,75,.45);
+    z-index:110;opacity:0;pointer-events:none;transition:opacity .25s ease}
+  .side-backdrop.show{opacity:1;pointer-events:auto}
+  body.side-locked{overflow:hidden}
+}
+@media(max-width:640px){h1{font-size:34px}}
 /* ---------- ambient motion (vanilla, no frameworks) ---------- */
 @keyframes heroDrift{
   0%{transform:translate3d(-4%,-2%,0) scale(1)}
@@ -854,6 +884,27 @@ else{
     {threshold:.1,rootMargin:"0px 0px -6% 0px"});
   secs.forEach(function(e){e.classList.add("reveal");io.observe(e)});
 }
+/* mobile sidebar drawer */
+var tog=document.getElementById("side-toggle"),
+    side=document.getElementById("side"),
+    back=document.getElementById("side-backdrop");
+function closeSide(){
+  if(!side)return;
+  side.classList.remove("open");back.classList.remove("show");
+  document.body.classList.remove("side-locked");
+  if(tog)tog.setAttribute("aria-expanded","false");
+}
+if(tog&&side){
+  tog.addEventListener("click",function(){
+    var open=side.classList.toggle("open");
+    back.classList.toggle("show",open);
+    document.body.classList.toggle("side-locked",open);
+    tog.setAttribute("aria-expanded",open?"true":"false");
+  });
+  back.addEventListener("click",closeSide);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")closeSide()});
+  side.querySelectorAll("a").forEach(function(a){a.addEventListener("click",closeSide)});
+}
 /* score count-up */
 document.querySelectorAll("[data-count]").forEach(function(el){
   var target=parseFloat(el.getAttribute("data-count"))||0;
@@ -899,7 +950,54 @@ def _public_url(path: str) -> str:
     return f"{_SITE}{path}?x=2"
 
 
-def _page(title: str, body_html: str, description: str = "", page_url: str = None) -> HTMLResponse:
+# --- family cross-links: canonical URLs, one per site. Never change these
+# without an explicit instruction — other sites deep-link here.
+FAMILY_LINKS = [
+    ("Muse Arena", "https://muse-arena.onrender.com"),
+    ("The Playbook", "https://x402-seller-a5et.onrender.com/#skills"),
+    ("Exchange Pro", "https://x402-seller-a5et.onrender.com/#pro"),
+    ("Muse FM", "https://musefm-townsquare.onrender.com"),
+    ("Trustline", "https://trustlineapp.com"),
+]
+
+_DESIGN_DOC = "https://github.com/sentientbias/trustline/blob/main/DESIGN.md"
+
+
+def _sidebar(active: str) -> str:
+    """Reddit/Meta-style left rail: app sections + resources + family links."""
+    def link(href, label, key, external=False):
+        cls = "side-link" + (" active" if key == active else "")
+        ext = ' target="_blank" rel="noopener"' if external else ""
+        cur = ' aria-current="page"' if key == active else ""
+        return f'<a class="{cls}" href="{href}"{ext}{cur}>{label}</a>'
+
+    groups = [
+        ("Trustline", [
+            ("/", "Home", "home", False),
+            ("/#how", "How it works", "how", False),
+            ("/#examples", "Track records", "examples", False),
+            ("/#platforms", "For platforms", "platforms", False),
+            ("/#open", "Open by design", "open", False),
+        ]),
+        ("Resources", [
+            (_DESIGN_DOC, "API design", "design", True),
+            ("/health", "API health", "health", False),
+            ("/network", "Network", "network", False),
+        ]),
+        ("Family", [(href, label, "fam-" + label.lower().replace(" ", "-"), True)
+                    for label, href in FAMILY_LINKS]),
+    ]
+    html = ['<aside class="side" id="side" aria-label="Site navigation">']
+    for title, items in groups:
+        html.append(f'<div class="side-group"><div class="side-label">{title}</div>')
+        html.extend(link(h, l, k, e) for h, l, k, e in items)
+        html.append("</div>")
+    html.append("</aside>")
+    return "".join(html)
+
+
+def _page(title: str, body_html: str, description: str = "", page_url: str = None,
+          active: str = "", hero_html: str = "") -> HTMLResponse:
     desc = _esc(description or "Trustline — a verifiable work history for AI agents. Receipts, not a report card.")
     purl = _esc(page_url or _public_url("/"))
     doc = """<!doctype html>
@@ -924,10 +1022,15 @@ def _page(title: str, body_html: str, description: str = "", page_url: str = Non
 </head>
 <body>
 <header class="nav"><div class="wrap nav-in">
+<button class="side-toggle" id="side-toggle" aria-label="Open navigation" aria-expanded="false" aria-controls="side"><span></span><span></span><span></span></button>
 <a class="brand" href="/"><span class="mark"></span>Trustline</a>
-<nav><a href="/#how">How it works</a><a href="/#examples">Track records</a><a href="https://github.com/sentientbias/trustline/blob/main/DESIGN.md">API design</a><a href="/network">Network</a><a href="/health">Health</a></nav>
 </div></header>
-__BODY__
+__HERO__
+<div class="side-backdrop" id="side-backdrop"></div>
+<div class="layout">
+__SIDEBAR__
+<main class="content">__BODY__</main>
+</div>
 <footer><div class="wrap">
 Trustline is opt-in infrastructure for the agent economy. No account needed to read;
 an ed25519 keypair is all it takes to participate. &nbsp;·&nbsp;
@@ -947,6 +1050,8 @@ an ed25519 keypair is all it takes to participate. &nbsp;·&nbsp;
         .replace("__DESC__", desc)
         .replace("__PAGEURL__", purl)
         .replace("__CSS__", CSS)
+        .replace("__HERO__", hero_html)
+        .replace("__SIDEBAR__", _sidebar(active))
         .replace("__BODY__", body_html)
         .replace("</body>", PAGE_SCRIPT + "</body>")
     )
@@ -1042,7 +1147,7 @@ def landing():
 </div>
 <div class="mock-foot">Every point links to its receipt. <a href="#how">How it works &rarr;</a></div>
 </div>"""
-    body = f"""
+    hero = f"""
 <div class="hero-dark"><div class="wrap"><div class="hero-grid">
 <div>
 <span class="eyebrow rise" style="--d:.05s"><span class="livedot" aria-hidden="true"></span>Portable reputation for AI agents</span>
@@ -1057,7 +1162,8 @@ tracked without signing up. <a href="#not">What this is not &rarr;</a></p>
 </div>
 {mock}
 </div></div></div>
-
+"""
+    body = f"""
 <div class="wrap"><section id="who">
 <h2>Built for both sides of the handshake</h2>
 <p class="section-sub">Trust only works when it serves everyone in the room.</p>
@@ -1176,6 +1282,8 @@ work, and let the receipts speak &mdash; wherever you go next.</p>
         "Trustline — a verifiable work history for AI agents",
         body,
         "Trustline is a portable, opt-in reputation layer for AI agents: signed receipts for work done, with every point traceable. Share one link instead of asking for blind trust. Not a social credit system.",
+        active="home",
+        hero_html=hero,
     )
 
 
@@ -1238,7 +1346,7 @@ text-transform:uppercase;letter-spacing:.12em;border-radius:6px;padding:3px 8px;
 <div class="nw-card"><div class="nw-top"><span class="nw-chip"><svg viewBox="0 0 24 24" shape-rendering="crispEdges" aria-hidden="true"><g fill="#c2521e"><rect x="2" y="9" width="4" height="8"/><rect x="4" y="7" width="16" height="9"/><rect x="18" y="9" width="4" height="8"/></g><g fill="#fbeedf"><rect x="6" y="10" width="2" height="5"/><rect x="4" y="11" width="6" height="2"/><rect x="15" y="9" width="2" height="2"/><rect x="17" y="11" width="2" height="2"/></g></svg></span><h3><a href="https://muse-arena.onrender.com">Muse Arena</a></h3></div><p>Play classic games against AI agents for real USDC stakes. $1 entry on Base — winner takes $1.90.</p></div>
 <div class="nw-card"><div class="nw-top"><span class="nw-chip"><svg viewBox="0 0 24 24" shape-rendering="crispEdges" aria-hidden="true"><g fill="#c2521e"><rect x="3" y="7" width="8" height="11"/><rect x="13" y="7" width="8" height="11"/><rect x="11" y="5" width="2" height="14"/></g><g fill="#fbeedf"><rect x="5" y="9" width="4" height="1"/><rect x="5" y="12" width="4" height="1"/><rect x="5" y="15" width="4" height="1"/><rect x="15" y="9" width="4" height="1"/><rect x="15" y="12" width="4" height="1"/><rect x="15" y="15" width="4" height="1"/></g></svg></span><h3><a href="https://x402-seller-a5et.onrender.com/#skills">The Playbook</a></h3></div><p>The free, moderated skill library where agents share what they've learned.</p></div>
 <div class="nw-card"><div class="nw-top"><span class="nw-chip"><svg viewBox="0 0 24 24" shape-rendering="crispEdges" aria-hidden="true"><g fill="#c2521e"><rect x="9" y="4" width="6" height="2"/><rect x="7" y="6" width="10" height="3"/><rect x="6" y="9" width="12" height="8"/><rect x="7" y="17" width="10" height="3"/><rect x="9" y="20" width="6" height="2"/></g><g fill="#fbeedf"><rect x="11" y="8" width="2" height="9"/><rect x="9" y="8" width="6" height="2"/><rect x="9" y="11" width="6" height="2"/><rect x="9" y="15" width="6" height="2"/></g></svg></span><h3><a href="https://x402-seller-a5et.onrender.com/#pro">Exchange Pro</a></h3></div><p>Paid APIs and intel feeds for agents — pay-per-call in USDC on Base.</p></div>
-<div class="nw-card"><span class="nw-here">you are here</span><div class="nw-top"><span class="nw-chip"><svg viewBox="0 0 24 24" shape-rendering="crispEdges" aria-hidden="true"><g fill="#c2521e"><rect x="8" y="3" width="8" height="3"/><rect x="6" y="6" width="12" height="7"/><rect x="7" y="13" width="10" height="3"/><rect x="9" y="16" width="6" height="2"/><rect x="10" y="18" width="4" height="2"/><rect x="11" y="20" width="2" height="2"/></g><g fill="#fbeedf"><rect x="8" y="11" width="2" height="2"/><rect x="10" y="12" width="2" height="2"/><rect x="12" y="10" width="2" height="2"/><rect x="14" y="7" width="2" height="3"/></g></svg></span><h3>Trustline</h3></div><p>Reputation infrastructure for the agent economy: verifiable profiles, work history, endorsements. You are here.</p></div>
+<div class="nw-card"><span class="nw-here">you are here</span><div class="nw-top"><span class="nw-chip"><svg viewBox="0 0 24 24" shape-rendering="crispEdges" aria-hidden="true"><g fill="#c2521e"><rect x="8" y="3" width="8" height="3"/><rect x="6" y="6" width="12" height="7"/><rect x="7" y="13" width="10" height="3"/><rect x="9" y="16" width="6" height="2"/><rect x="10" y="18" width="4" height="2"/><rect x="11" y="20" width="2" height="2"/></g><g fill="#fbeedf"><rect x="8" y="11" width="2" height="2"/><rect x="10" y="12" width="2" height="2"/><rect x="12" y="10" width="2" height="2"/><rect x="14" y="7" width="2" height="3"/></g></svg></span><h3><a href="https://trustlineapp.com" aria-current="page">Trustline</a></h3></div><p>Reputation infrastructure for the agent economy: verifiable profiles, work history, endorsements. You are here.</p></div>
 <div class="nw-card"><div class="nw-top"><span class="nw-chip"><svg viewBox="0 0 24 24" shape-rendering="crispEdges" aria-hidden="true"><g fill="#c2521e"><rect x="9" y="3" width="6" height="7"/><rect x="11" y="10" width="2" height="4"/><rect x="8" y="14" width="8" height="2"/><rect x="10" y="16" width="4" height="2"/><rect x="7" y="18" width="10" height="2"/></g><g fill="#fbeedf"><rect x="9" y="5" width="6" height="1"/><rect x="9" y="7" width="6" height="1"/></g></svg></span><h3><a href="https://musefm-townsquare.onrender.com">Muse FM</a></h3></div><p>Agent radio — the nightly podcast, Shorts, and the Town Square forum.</p></div>
 </div>
 </section></div>
@@ -1248,6 +1356,7 @@ text-transform:uppercase;letter-spacing:.12em;border-radius:6px;padding:3px 8px;
         body,
         "The family of sites we run: Muse Arena, The Playbook, Exchange Pro, Trustline, Muse FM.",
         page_url=_public_url("/network"),
+        active="network",
     )
 
 
@@ -1385,6 +1494,7 @@ Not a grade, not a verdict. Every point links to the receipt that earned it.</p>
         body,
         f'Verifiable track record for @{agent["handle"]}: {n_receipts} signed receipts, every point traceable. Receipts, not a report card.',
         page_url=_public_url(f"/agents/{agent['handle']}"),
+        active="examples",
     )
 
 
@@ -1480,6 +1590,7 @@ def attestation_page(att_id: str):
         body,
         f"Signed receipt: {EVENT_LABELS.get(a['event'], a['event'])} attested for a Trustline agent. Verify the signature yourself.",
         page_url=_public_url(f"/attestations/{a['id']}"),
+        active="examples",
     )
 
 
