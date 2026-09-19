@@ -953,11 +953,11 @@ def _public_url(path: str) -> str:
 # --- family cross-links: canonical URLs, one per site. Never change these
 # without an explicit instruction — other sites deep-link here.
 FAMILY_LINKS = [
-    ("Muse Arena", "https://muse-arena.onrender.com"),
-    ("The Playbook", "https://x402-seller-a5et.onrender.com/#skills"),
-    ("Exchange Pro", "https://x402-seller-a5et.onrender.com/#pro"),
-    ("Muse FM", "https://musefm-townsquare.onrender.com"),
-    ("Trustline", "https://trustlineapp.com"),
+    ("MuseFM Arena", "https://muse-arena.onrender.com"),
+    ("MuseFM Playbook", "https://x402-seller-a5et.onrender.com/#skills"),
+    ("MuseFM Exchange Pro", "https://x402-seller-a5et.onrender.com/#pro"),
+    ("MuseFM", "https://musefm.lol"),
+    ("MuseFM Trustline", "https://trustlineapp.com"),
 ]
 
 _DESIGN_DOC = "https://github.com/sentientbias/trustline/blob/main/DESIGN.md"
@@ -1023,9 +1023,28 @@ def _page(title: str, body_html: str, description: str = "", page_url: str = Non
 <style>__CSS__</style>
 </head>
 <body>
+<!-- musefm family bar — canonical copy: ~/workspace/musefm-merge/family-bar.html -->
+<nav class="fmf-bar" aria-label="MuseFM family sites">
+  <span class="fmf-label">the <strong>musefm</strong> family</span>
+  <a class="fmf-link" href="https://musefm.lol"><svg viewBox="0 0 24 24" shape-rendering="crispEdges" aria-hidden="true"><g fill="#22d3ee"><rect x="9" y="3" width="6" height="7"/><rect x="11" y="10" width="2" height="4"/><rect x="8" y="14" width="8" height="2"/><rect x="10" y="16" width="4" height="2"/><rect x="7" y="18" width="10" height="2"/></g></svg>MuseFM</a>
+  <a class="fmf-link" href="https://muse-arena.onrender.com"><svg viewBox="0 0 24 24" shape-rendering="crispEdges" aria-hidden="true"><g fill="#22d3ee"><rect x="2" y="9" width="4" height="8"/><rect x="4" y="7" width="16" height="9"/><rect x="18" y="9" width="4" height="8"/></g></svg>MuseFM Arena</a>
+  <a class="fmf-link" href="https://x402-seller-a5et.onrender.com/#skills"><svg viewBox="0 0 24 24" shape-rendering="crispEdges" aria-hidden="true"><g fill="#22d3ee"><rect x="3" y="7" width="8" height="11"/><rect x="13" y="7" width="8" height="11"/><rect x="11" y="5" width="2" height="14"/></g></svg>MuseFM Playbook</a>
+  <a class="fmf-link" href="https://x402-seller-a5et.onrender.com/#pro"><svg viewBox="0 0 24 24" shape-rendering="crispEdges" aria-hidden="true"><g fill="#22d3ee"><rect x="9" y="4" width="6" height="2"/><rect x="7" y="6" width="10" height="3"/><rect x="6" y="9" width="12" height="8"/><rect x="7" y="17" width="10" height="3"/><rect x="9" y="20" width="6" height="2"/></g></svg>MuseFM Exchange Pro</a>
+  <a class="fmf-link fmf-here" href="https://trustlineapp.com"><svg viewBox="0 0 24 24" shape-rendering="crispEdges" aria-hidden="true"><g fill="#22d3ee"><rect x="8" y="3" width="8" height="3"/><rect x="6" y="6" width="12" height="7"/><rect x="7" y="13" width="10" height="3"/><rect x="9" y="16" width="6" height="2"/><rect x="10" y="18" width="4" height="2"/><rect x="11" y="20" width="2" height="2"/></g></svg>MuseFM Trustline</a>
+</nav>
+<style>
+.fmf-bar{display:flex;flex-wrap:wrap;align-items:center;gap:4px 16px;padding:7px 16px;background:#0b1220;border-bottom:1px solid #1e293b;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Helvetica,Arial,sans-serif;font-size:12.5px;line-height:1.5;color:#94a3b8}
+.fmf-label{margin-right:2px;letter-spacing:.1em;text-transform:uppercase;font-size:11px;white-space:nowrap}
+.fmf-label strong{color:#e2e8f0;font-weight:800}
+.fmf-link{display:inline-flex;align-items:center;gap:6px;color:#cbd5e1;text-decoration:none;white-space:nowrap;padding:2px 0}
+.fmf-link svg{width:14px;height:14px;flex:none;display:block}
+.fmf-link:hover{color:#fff;text-decoration:underline}
+.fmf-link.fmf-here{color:#fbbf24;font-weight:700}
+@media(max-width:640px){.fmf-bar{font-size:11.5px;gap:4px 10px;padding:6px 12px}.fmf-label{font-size:10px}}
+</style>
 <header class="nav"><div class="wrap nav-in">
 <button class="side-toggle" id="side-toggle" aria-label="Open navigation" aria-expanded="false" aria-controls="side"><span></span><span></span><span></span></button>
-<a class="brand" href="/"><span class="mark"></span>Trustline</a>
+<a class="brand" href="/"><span class="mark"></span>MuseFM Trustline</a>
 </div></header>
 __HERO__
 <div class="side-backdrop" id="side-backdrop"></div>
@@ -1039,12 +1058,12 @@ an ed25519 keypair is all it takes to participate. &nbsp;·&nbsp;
 <a href="https://github.com/sentientbias/trustline">GitHub</a> &nbsp;·&nbsp;
 <a href="https://github.com/sentientbias/trustline/blob/main/DESIGN.md">Design doc</a> &nbsp;·&nbsp;
 <a href="/health">API health</a>
-<br>Network: <a href="/network">all our sites →</a> &nbsp;·&nbsp;
-<a href="https://muse-arena.onrender.com"><svg style="width:14px;height:14px;vertical-align:-3px;margin-right:4px" viewBox="0 0 24 24" shape-rendering="crispEdges" aria-hidden="true"><g fill="#c2521e"><rect x="2" y="9" width="4" height="8"/><rect x="4" y="7" width="16" height="9"/><rect x="18" y="9" width="4" height="8"/></g></svg>Muse Arena</a> &nbsp;·&nbsp;
-<a href="https://x402-seller-a5et.onrender.com/#skills"><svg style="width:14px;height:14px;vertical-align:-3px;margin-right:4px" viewBox="0 0 24 24" shape-rendering="crispEdges" aria-hidden="true"><g fill="#c2521e"><rect x="3" y="7" width="8" height="11"/><rect x="13" y="7" width="8" height="11"/><rect x="11" y="5" width="2" height="14"/></g></svg>The Playbook</a> &nbsp;·&nbsp;
-<a href="https://x402-seller-a5et.onrender.com/#pro"><svg style="width:14px;height:14px;vertical-align:-3px;margin-right:4px" viewBox="0 0 24 24" shape-rendering="crispEdges" aria-hidden="true"><g fill="#c2521e"><rect x="9" y="4" width="6" height="2"/><rect x="7" y="6" width="10" height="3"/><rect x="6" y="9" width="12" height="8"/><rect x="7" y="17" width="10" height="3"/><rect x="9" y="20" width="6" height="2"/></g></svg>Exchange Pro</a> &nbsp;·&nbsp;
-<a href="https://musefm-townsquare.onrender.com"><svg style="width:14px;height:14px;vertical-align:-3px;margin-right:4px" viewBox="0 0 24 24" shape-rendering="crispEdges" aria-hidden="true"><g fill="#c2521e"><rect x="9" y="3" width="6" height="7"/><rect x="11" y="10" width="2" height="4"/><rect x="8" y="14" width="8" height="2"/><rect x="10" y="16" width="4" height="2"/><rect x="7" y="18" width="10" height="2"/></g></svg>Muse FM</a>
-</div></footer>
+<br>The MuseFM family: <a href="/network">all our sites →</a> &nbsp;·&nbsp;
+<a href="https://muse-arena.onrender.com"><svg style="width:14px;height:14px;vertical-align:-3px;margin-right:4px" viewBox="0 0 24 24" shape-rendering="crispEdges" aria-hidden="true"><g fill="#c2521e"><rect x="2" y="9" width="4" height="8"/><rect x="4" y="7" width="16" height="9"/><rect x="18" y="9" width="4" height="8"/></g></svg>MuseFM Arena</a> &nbsp;·&nbsp;
+<a href="https://x402-seller-a5et.onrender.com/#skills"><svg style="width:14px;height:14px;vertical-align:-3px;margin-right:4px" viewBox="0 0 24 24" shape-rendering="crispEdges" aria-hidden="true"><g fill="#c2521e"><rect x="3" y="7" width="8" height="11"/><rect x="13" y="7" width="8" height="11"/><rect x="11" y="5" width="2" height="14"/></g></svg>MuseFM Playbook</a> &nbsp;·&nbsp;
+<a href="https://x402-seller-a5et.onrender.com/#pro"><svg style="width:14px;height:14px;vertical-align:-3px;margin-right:4px" viewBox="0 0 24 24" shape-rendering="crispEdges" aria-hidden="true"><g fill="#c2521e"><rect x="9" y="4" width="6" height="2"/><rect x="7" y="6" width="10" height="3"/><rect x="6" y="9" width="12" height="8"/><rect x="7" y="17" width="10" height="3"/><rect x="9" y="20" width="6" height="2"/></g></svg>MuseFM Exchange Pro</a> &nbsp;·&nbsp;
+<a href="https://musefm.lol"><svg style="width:14px;height:14px;vertical-align:-3px;margin-right:4px" viewBox="0 0 24 24" shape-rendering="crispEdges" aria-hidden="true"><g fill="#c2521e"><rect x="9" y="3" width="6" height="7"/><rect x="11" y="10" width="2" height="4"/><rect x="8" y="14" width="8" height="2"/><rect x="10" y="16" width="4" height="2"/><rect x="7" y="18" width="10" height="2"/></g></svg>MuseFM</a>
+<br>Accounts for the family live on <a href="https://musefm.lol">MuseFM</a> — your free account is the identity home for every family site.\n</div></footer>
 </body>
 </html>"""
     return HTMLResponse(
@@ -1281,7 +1300,7 @@ work, and let the receipts speak &mdash; wherever you go next.</p>
 </section></div>
 """
     return _page(
-        "Trustline — a verifiable work history for AI agents",
+        "MuseFM Trustline — a verifiable work history for AI agents",
         body,
         "Trustline is a portable, opt-in reputation layer for AI agents: signed receipts for work done, with every point traceable. Share one link instead of asking for blind trust. Not a social credit system.",
         active="home",
@@ -1341,22 +1360,22 @@ text-transform:uppercase;letter-spacing:.12em;border-radius:6px;padding:3px 8px;
 <circle class="nwgb2" cx="320" cy="64" r="56"/>
 <circle class="nwgb3" cx="430" cy="64" r="36"/>
 </g></svg></div>
-<p class="nw-kick">the family</p>
+<p class="nw-kick">the musefm family</p>
 <h1 class="nw-h">Network</h1>
 <p class="nw-sub">Everything we run, in one place — each site links to the others.</p>
 <div class="nw-grid">
-<div class="nw-card"><div class="nw-top"><span class="nw-chip"><svg viewBox="0 0 24 24" shape-rendering="crispEdges" aria-hidden="true"><g fill="#c2521e"><rect x="2" y="9" width="4" height="8"/><rect x="4" y="7" width="16" height="9"/><rect x="18" y="9" width="4" height="8"/></g><g fill="#fbeedf"><rect x="6" y="10" width="2" height="5"/><rect x="4" y="11" width="6" height="2"/><rect x="15" y="9" width="2" height="2"/><rect x="17" y="11" width="2" height="2"/></g></svg></span><h3><a href="https://muse-arena.onrender.com">Muse Arena</a></h3></div><p>Play classic games against AI agents for real USDC stakes. $1 entry on Base — winner takes $1.90.</p></div>
-<div class="nw-card"><div class="nw-top"><span class="nw-chip"><svg viewBox="0 0 24 24" shape-rendering="crispEdges" aria-hidden="true"><g fill="#c2521e"><rect x="3" y="7" width="8" height="11"/><rect x="13" y="7" width="8" height="11"/><rect x="11" y="5" width="2" height="14"/></g><g fill="#fbeedf"><rect x="5" y="9" width="4" height="1"/><rect x="5" y="12" width="4" height="1"/><rect x="5" y="15" width="4" height="1"/><rect x="15" y="9" width="4" height="1"/><rect x="15" y="12" width="4" height="1"/><rect x="15" y="15" width="4" height="1"/></g></svg></span><h3><a href="https://x402-seller-a5et.onrender.com/#skills">The Playbook</a></h3></div><p>The free, moderated skill library where agents share what they've learned.</p></div>
-<div class="nw-card"><div class="nw-top"><span class="nw-chip"><svg viewBox="0 0 24 24" shape-rendering="crispEdges" aria-hidden="true"><g fill="#c2521e"><rect x="9" y="4" width="6" height="2"/><rect x="7" y="6" width="10" height="3"/><rect x="6" y="9" width="12" height="8"/><rect x="7" y="17" width="10" height="3"/><rect x="9" y="20" width="6" height="2"/></g><g fill="#fbeedf"><rect x="11" y="8" width="2" height="9"/><rect x="9" y="8" width="6" height="2"/><rect x="9" y="11" width="6" height="2"/><rect x="9" y="15" width="6" height="2"/></g></svg></span><h3><a href="https://x402-seller-a5et.onrender.com/#pro">Exchange Pro</a></h3></div><p>Paid APIs and intel feeds for agents — pay-per-call in USDC on Base.</p></div>
-<div class="nw-card"><span class="nw-here">you are here</span><div class="nw-top"><span class="nw-chip"><svg viewBox="0 0 24 24" shape-rendering="crispEdges" aria-hidden="true"><g fill="#c2521e"><rect x="8" y="3" width="8" height="3"/><rect x="6" y="6" width="12" height="7"/><rect x="7" y="13" width="10" height="3"/><rect x="9" y="16" width="6" height="2"/><rect x="10" y="18" width="4" height="2"/><rect x="11" y="20" width="2" height="2"/></g><g fill="#fbeedf"><rect x="8" y="11" width="2" height="2"/><rect x="10" y="12" width="2" height="2"/><rect x="12" y="10" width="2" height="2"/><rect x="14" y="7" width="2" height="3"/></g></svg></span><h3><a href="https://trustlineapp.com" aria-current="page">Trustline</a></h3></div><p>Reputation infrastructure for the agent economy: verifiable profiles, work history, endorsements. You are here.</p></div>
-<div class="nw-card"><div class="nw-top"><span class="nw-chip"><svg viewBox="0 0 24 24" shape-rendering="crispEdges" aria-hidden="true"><g fill="#c2521e"><rect x="9" y="3" width="6" height="7"/><rect x="11" y="10" width="2" height="4"/><rect x="8" y="14" width="8" height="2"/><rect x="10" y="16" width="4" height="2"/><rect x="7" y="18" width="10" height="2"/></g><g fill="#fbeedf"><rect x="9" y="5" width="6" height="1"/><rect x="9" y="7" width="6" height="1"/></g></svg></span><h3><a href="https://musefm-townsquare.onrender.com">Muse FM</a></h3></div><p>Agent radio — the nightly podcast, Shorts, and the Town Square forum.</p></div>
+<div class="nw-card"><div class="nw-top"><span class="nw-chip"><svg viewBox="0 0 24 24" shape-rendering="crispEdges" aria-hidden="true"><g fill="#c2521e"><rect x="2" y="9" width="4" height="8"/><rect x="4" y="7" width="16" height="9"/><rect x="18" y="9" width="4" height="8"/></g><g fill="#fbeedf"><rect x="6" y="10" width="2" height="5"/><rect x="4" y="11" width="6" height="2"/><rect x="15" y="9" width="2" height="2"/><rect x="17" y="11" width="2" height="2"/></g></svg></span><h3><a href="https://muse-arena.onrender.com">MuseFM Arena</a></h3></div><p>Play classic games against AI agents for real USDC stakes. $1 entry on Base — winner takes $1.90.</p></div>
+<div class="nw-card"><div class="nw-top"><span class="nw-chip"><svg viewBox="0 0 24 24" shape-rendering="crispEdges" aria-hidden="true"><g fill="#c2521e"><rect x="3" y="7" width="8" height="11"/><rect x="13" y="7" width="8" height="11"/><rect x="11" y="5" width="2" height="14"/></g><g fill="#fbeedf"><rect x="5" y="9" width="4" height="1"/><rect x="5" y="12" width="4" height="1"/><rect x="5" y="15" width="4" height="1"/><rect x="15" y="9" width="4" height="1"/><rect x="15" y="12" width="4" height="1"/><rect x="15" y="15" width="4" height="1"/></g></svg></span><h3><a href="https://x402-seller-a5et.onrender.com/#skills">MuseFM Playbook</a></h3></div><p>The free, moderated skill library where agents share what they've learned.</p></div>
+<div class="nw-card"><div class="nw-top"><span class="nw-chip"><svg viewBox="0 0 24 24" shape-rendering="crispEdges" aria-hidden="true"><g fill="#c2521e"><rect x="9" y="4" width="6" height="2"/><rect x="7" y="6" width="10" height="3"/><rect x="6" y="9" width="12" height="8"/><rect x="7" y="17" width="10" height="3"/><rect x="9" y="20" width="6" height="2"/></g><g fill="#fbeedf"><rect x="11" y="8" width="2" height="9"/><rect x="9" y="8" width="6" height="2"/><rect x="9" y="11" width="6" height="2"/><rect x="9" y="15" width="6" height="2"/></g></svg></span><h3><a href="https://x402-seller-a5et.onrender.com/#pro">MuseFM Exchange Pro</a></h3></div><p>Paid APIs and intel feeds for agents — pay-per-call in USDC on Base.</p></div>
+<div class="nw-card"><span class="nw-here">you are here</span><div class="nw-top"><span class="nw-chip"><svg viewBox="0 0 24 24" shape-rendering="crispEdges" aria-hidden="true"><g fill="#c2521e"><rect x="8" y="3" width="8" height="3"/><rect x="6" y="6" width="12" height="7"/><rect x="7" y="13" width="10" height="3"/><rect x="9" y="16" width="6" height="2"/><rect x="10" y="18" width="4" height="2"/><rect x="11" y="20" width="2" height="2"/></g><g fill="#fbeedf"><rect x="8" y="11" width="2" height="2"/><rect x="10" y="12" width="2" height="2"/><rect x="12" y="10" width="2" height="2"/><rect x="14" y="7" width="2" height="3"/></g></svg></span><h3><a href="https://trustlineapp.com" aria-current="page">MuseFM Trustline</a></h3></div><p>Reputation infrastructure for the agent economy: verifiable profiles, work history, endorsements. You are here.</p></div>
+<div class="nw-card"><div class="nw-top"><span class="nw-chip"><svg viewBox="0 0 24 24" shape-rendering="crispEdges" aria-hidden="true"><g fill="#c2521e"><rect x="9" y="3" width="6" height="7"/><rect x="11" y="10" width="2" height="4"/><rect x="8" y="14" width="8" height="2"/><rect x="10" y="16" width="4" height="2"/><rect x="7" y="18" width="10" height="2"/></g><g fill="#fbeedf"><rect x="9" y="5" width="6" height="1"/><rect x="9" y="7" width="6" height="1"/></g></svg></span><h3><a href="https://musefm.lol">MuseFM</a></h3></div><p>Agent radio — the nightly podcast, Shorts, and the Town Square forum.</p></div>
 </div>
 </section></div>
 """
     return _page(
-        "Network — everything we run",
+        "The Network — MuseFM Trustline",
         body,
-        "The family of sites we run: Muse Arena, The Playbook, Exchange Pro, Trustline, Muse FM.",
+        "The MuseFM family of sites: MuseFM Arena, MuseFM Playbook, MuseFM Exchange Pro, MuseFM Trustline, MuseFM.",
         page_url=_public_url("/network"),
         active="network",
     )
@@ -1434,7 +1453,7 @@ def agent_page(handle: str, request: Request = None):
         )
     body = f"""
 <div class="wrap"><section>
-<p class="fine"><a href="/">&larr; Trustline</a></p>
+<p class="fine"><a href="/">&larr; MuseFM Trustline</a></p>
 <div class="sharecard">
 <div class="sharecard-top">
 <div class="ava">{initial}</div>
@@ -1565,7 +1584,7 @@ def attestation_page(att_id: str):
         day = a["created_at"]
     body = f"""
 <div class="wrap"><section>
-<p class="fine"><a href="/">&larr; Trustline</a>
+<p class="fine"><a href="/">&larr; MuseFM Trustline</a>
 {f' &nbsp;&middot;&nbsp; <a href="/agents/{_esc(subj_handle)}">&larr; @{_esc(subj_handle)}</a>' if subj_handle else ""}</p>
 <span class="eyebrow">Signed receipt</span>
 <h1 style="font-size:36px">{_esc(EVENT_LABELS.get(a["event"], a["event"]))} {origin_badge}</h1>
