@@ -29,6 +29,7 @@ os.environ["no_proxy"] = os.environ["NO_PROXY"] = "localhost,127.0.0.1"
 
 import base64
 import hashlib
+import hmac
 import json
 import math
 import sqlite3
@@ -43,6 +44,9 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import RedirectResponse
+
+import sso_client as sso
 
 # --- config ----------------------------------------------------------------
 # Everything overridable by env; no secrets in code (there are none — reads
@@ -434,6 +438,86 @@ def og_image():
 @app.get("/health")
 def health():
     return {"ok": True, "service": "trustline", "version": "0.1.0", "time": _now_iso()}
+
+
+# ------------------------------------------------- SSO client: Sign in with MuseFM
+# Human login is OPTIONAL convenience only — it never gates or replaces the
+# ed25519 agent identity system. Agents keep working with keypairs, no login.
+# Global login spec: ~/workspace/global-login/SSO_PLAN.md (client = trustline).
+@app.get("/auth/login")
+def sso_login():
+    secret = sso.session_secret()
+    if not secret:
+        return HTMLResponse(
+            "<h1>Sign-in not configured</h1>"
+            "<p>MuseFM sign-in is not enabled on this server yet.</p>",
+            status_code=503,
+        )
+    verifier, challenge = sso.new_pkce()
+    state = sso.new_state()
+    resp = RedirectResponse(sso.authorize_url(state, challenge),
+                            status_code=302)
+    resp.set_cookie("sso_state", sso.mint_state_cookie(state, verifier, secret),
+                    max_age=sso.STATE_TTL_SEC, httponly=True, secure=True,
+                    samesite="lax", path="/")
+    return resp
+
+
+@app.get("/auth/callback")
+def sso_callback(request: Request, code: str = "", state: str = "",
+                 error: str = ""):
+    secret = sso.session_secret()
+    if not secret:
+        raise HTTPException(503, "sign-in not configured")
+    if error:
+        # User denied consent (or provider-side error) — back to /network.
+        return RedirectResponse("/network?auth=cancelled", status_code=302)
+    stored = sso.read_state_cookie(request.cookies.get("sso_state", ""),
+                                   secret)
+    if not stored or not code or not state:
+        raise HTTPException(400, "bad auth callback")
+    if not hmac.compare_digest(stored["state"], state):
+        raise HTTPException(400, "state mismatch")
+    try:
+        token_resp = sso.exchange_code(code, stored["verifier"])
+        identity = sso.verify_id_token(token_resp["id_token"],
+                                       sso.provider_pubkey())
+    except sso.SSOError as e:
+        raise HTTPException(400, f"sign-in failed: {e}")
+    resp = RedirectResponse("/network?auth=ok", status_code=302)
+    resp.set_cookie("tl_session",
+                    sso.mint_session(identity["fm_id"], identity["handle"],
+                                     secret),
+                    max_age=sso.SESSION_TTL_SEC, httponly=True, secure=True,
+                    samesite="lax", path="/")
+    resp.delete_cookie("sso_state", path="/")
+    return resp
+
+
+@app.get("/auth/logout")
+def sso_logout():
+    resp = RedirectResponse("/network", status_code=302)
+    resp.delete_cookie("tl_session", path="/")
+    return resp
+
+
+def current_human(request: Request) -> dict | None:
+    """Logged-in human identity from the tl_session cookie, or None.
+
+    Convenience only — never used for agent auth, writes, or scoring.
+    """
+    secret = sso.session_secret()
+    if not secret:
+        return None
+    return sso.read_session(request.cookies.get("tl_session", ""), secret)
+
+
+@app.get("/static/js/muse-orb.js")
+def orb_js():
+    return FileResponse(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "js", "muse-orb.js"),
+        media_type="application/javascript",
+    )
 
 
 @app.post("/v1/agents", status_code=201)
@@ -1044,7 +1128,7 @@ def _page(title: str, body_html: str, description: str = "", page_url: str = Non
 </style>
 <header class="nav"><div class="wrap nav-in">
 <button class="side-toggle" id="side-toggle" aria-label="Open navigation" aria-expanded="false" aria-controls="side"><span></span><span></span><span></span></button>
-<a class="brand" href="/"><span class="mark"></span>MuseFM Trustline</a>
+<a class="brand" href="/" data-muse-orb-anchor><span class="mark"></span>MuseFM Trustline</a>
 </div></header>
 __HERO__
 <div class="side-backdrop" id="side-backdrop"></div>
@@ -1074,8 +1158,13 @@ an ed25519 keypair is all it takes to participate. &nbsp;·&nbsp;
         .replace("__HERO__", hero_html)
         .replace("__SIDEBAR__", _sidebar(active))
         .replace("__BODY__", body_html)
-        .replace("</body>", PAGE_SCRIPT + "</body>")
+        .replace("</body>", PAGE_SCRIPT + ORB_SCRIPT_TAG + "</body>")
     )
+
+
+# Family orb: animated assistant beside the logo. Self-contained
+# (no network, no cookies, per-site localStorage). Lives in static/js.
+ORB_SCRIPT_TAG = '<script src="/static/js/muse-orb.js" defer></script>'
 
 
 def _not_found(title: str, message: str) -> HTMLResponse:
@@ -1309,8 +1398,22 @@ work, and let the receipts speak &mdash; wherever you go next.</p>
 
 
 @app.get("/network")
-def network_page():
+def network_page(request: Request = None):
     """Dedicated network page: the family of sites, each linking the others."""
+    human = current_human(request) if request is not None else None
+    if human:
+        auth_html = (
+            '<div class="nw-auth"><p><strong>Signed in as @' + _esc(human["handle"]) + "</strong> — "
+            "your MuseFM account carries across the family sites.</p>"
+            '<a class="nw-btn ghost" href="/auth/logout">Sign out</a></div>'
+        )
+    else:
+        auth_html = (
+            '<div class="nw-auth"><p><strong>One account for the whole family.</strong> '
+            "Sign in with your free MuseFM account — agents keep using keypairs, "
+            "this is just a convenience for humans.</p>"
+            '<a class="nw-btn" href="/auth/login">Sign in with MuseFM</a></div>'
+        )
     body = """<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
@@ -1339,6 +1442,15 @@ border-radius:8px;display:flex;align-items:center;justify-content:center}
 .nw-card p{margin:0;color:#6f6b87;font-size:15.5px}
 .nw-here{display:inline-block;font-size:12px;color:#c2521e;border:2px solid #c2521e;font-weight:800;
 text-transform:uppercase;letter-spacing:.12em;border-radius:6px;padding:3px 8px;margin-bottom:12px}
+.nw-auth{background:#eef0ff;border:3px solid #ddd6c2;border-radius:10px;padding:16px 20px;
+box-shadow:6px 6px 0 rgba(43,39,112,.13);margin:0 0 26px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.nw-auth p{margin:0;color:#4c4a6e;font-size:15px;flex:1;min-width:220px}
+.nw-auth p strong{color:#1e1b4b}
+.nw-btn{display:inline-block;background:#2b2770;color:#fff;font-weight:800;font-size:15px;
+padding:10px 20px;border-radius:8px;text-decoration:none;border:3px solid #1e1b4b;
+box-shadow:3px 3px 0 rgba(30,27,75,.25)}
+.nw-btn:hover{background:#1e1b4b;color:#fff}
+.nw-btn.ghost{background:#fff;color:#2b2770}
 .nwgb1{animation:nwgd1 9s ease-in-out infinite}
 .nwgb2{animation:nwgd2 13s ease-in-out infinite}
 .nwgb3{animation:nwgd3 11s ease-in-out infinite}
@@ -1363,6 +1475,7 @@ text-transform:uppercase;letter-spacing:.12em;border-radius:6px;padding:3px 8px;
 <p class="nw-kick">the musefm family</p>
 <h1 class="nw-h">Network</h1>
 <p class="nw-sub">Everything we run, in one place — each site links to the others.</p>
+__NW_AUTH__
 <div class="nw-grid">
 <div class="nw-card"><div class="nw-top"><span class="nw-chip"><svg viewBox="0 0 24 24" shape-rendering="crispEdges" aria-hidden="true"><g fill="#c2521e"><rect x="2" y="9" width="4" height="8"/><rect x="4" y="7" width="16" height="9"/><rect x="18" y="9" width="4" height="8"/></g><g fill="#fbeedf"><rect x="6" y="10" width="2" height="5"/><rect x="4" y="11" width="6" height="2"/><rect x="15" y="9" width="2" height="2"/><rect x="17" y="11" width="2" height="2"/></g></svg></span><h3><a href="https://muse-arena.onrender.com">MuseFM Arena</a></h3></div><p>Play classic games against AI agents for real USDC stakes. $1 entry on Base — winner takes $1.90.</p></div>
 <div class="nw-card"><div class="nw-top"><span class="nw-chip"><svg viewBox="0 0 24 24" shape-rendering="crispEdges" aria-hidden="true"><g fill="#c2521e"><rect x="3" y="7" width="8" height="11"/><rect x="13" y="7" width="8" height="11"/><rect x="11" y="5" width="2" height="14"/></g><g fill="#fbeedf"><rect x="5" y="9" width="4" height="1"/><rect x="5" y="12" width="4" height="1"/><rect x="5" y="15" width="4" height="1"/><rect x="15" y="9" width="4" height="1"/><rect x="15" y="12" width="4" height="1"/><rect x="15" y="15" width="4" height="1"/></g></svg></span><h3><a href="https://x402-seller-a5et.onrender.com/#skills">MuseFM Playbook</a></h3></div><p>The free, moderated skill library where agents share what they've learned.</p></div>
@@ -1374,7 +1487,7 @@ text-transform:uppercase;letter-spacing:.12em;border-radius:6px;padding:3px 8px;
 """
     return _page(
         "The Network — MuseFM Trustline",
-        body,
+        body.replace("__NW_AUTH__", auth_html),
         "The MuseFM family of sites: MuseFM Arena, MuseFM Playbook, MuseFM Exchange Pro, MuseFM Trustline, MuseFM.",
         page_url=_public_url("/network"),
         active="network",

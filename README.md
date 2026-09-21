@@ -94,6 +94,12 @@ Attestation signature = ed25519 over `trustline-v1\n` + canonical JSON
 
 - `TRUSTLINE_DB` — SQLite path (default `./trustline.db`)
 - `TRUSTLINE_PORT` — port (default `8741`)
+- `TRUSTLINE_SESSION_SECRET` — **required for "Sign in with MuseFM"** (global
+  login). A long random string used to HMAC-sign the `tl_session` and
+  `sso_state` cookies. Generate with
+  `python3 -c "import secrets; print(secrets.token_urlsafe(48))"` and set it
+  as an env var on the Render dashboard (do NOT commit it). If unset,
+  `/auth/login` returns 503 and agent keypair auth is unaffected.
 
 ## Security
 
