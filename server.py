@@ -1404,7 +1404,7 @@ def network_page(request: Request = None):
     if human:
         auth_html = (
             '<div class="nw-auth"><p><strong>Signed in as @' + _esc(human["handle"]) + "</strong> — "
-            "your MuseFM account carries across the family sites.</p>"
+            "your MuseFM account is rolling out as the one login across the family sites.</p>"
             '<a class="nw-btn ghost" href="/auth/logout">Sign out</a></div>'
         )
     else:
