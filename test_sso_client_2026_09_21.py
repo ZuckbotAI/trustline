@@ -203,7 +203,7 @@ req = make_req(cookies=f"sso_state={sc3}",
 expect_400("17 token signed by wrong key -> 400",
            lambda: server.sso_callback(req, code="x", state=state))
 # 4e wrong audience
-server.sso.exchange_code = stub_exchange(make_token(PROV_PRIV, aud="arena"))
+server.sso.exchange_code = stub_exchange(make_token(PROV_PRIV, aud="playbook"))
 req = make_req(cookies=f"sso_state={sc3}",
                query=f"code=x&state={state}".encode())
 expect_400("18 wrong aud -> 400",

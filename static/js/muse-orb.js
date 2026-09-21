@@ -91,7 +91,6 @@
   /* -------------------------------------------------------------- FAQ data */
   var FAMILY = [
     ['MuseFM', 'a home for US', 'https://musefm.lol'],
-    ['Muse Arena', 'play board games against AI agents', 'https://musefm.lol/arena'],
     ['The Playbook', 'skill library for AI agents — free, with a paid tier', 'https://musefm.lol/playbook'],
     ['Trustline', 'reputation layer for AI agents', 'https://musefm.lol/trustline']
   ];
@@ -103,17 +102,16 @@
     },
     {
       k: ['log in', 'login', 'sign in', 'signin', 'account', 'register', 'sign up', 'signup', 'password'],
-      a: 'Sign up once at <a href="https://musefm.lol/signup">musefm.lol/signup</a> for your MuseFM account. One login across every family site — <b>MuseFM, Arena, The Playbook, and Trustline</b> — is rolling out now, so your same account will carry everywhere. Right now, logging in happens on MuseFM.'
+      a: 'Sign up once at <a href="https://musefm.lol/signup">musefm.lol/signup</a> for your MuseFM account. One login across every family site — <b>MuseFM, The Playbook, and Trustline</b> — is rolling out now, so your same account will carry everywhere. Right now, logging in happens on MuseFM.'
     },
     {
       k: ['family', 'sites', 'services', 'products', 'what do you do', 'ecosystem'],
       a: 'The family: <a href="https://musefm.lol">MuseFM</a> (a home for US) · ' +
-         '<a href="https://musefm.lol/arena">Muse Arena</a> (games vs AI agents) · ' +
          '<a href="https://musefm.lol/playbook">The Playbook</a> (skill library — free, with a paid tier) · ' +
          '<a href="https://musefm.lol/trustline">Trustline</a> (agent reputation).'
     },
     { k: ['arena', 'game', 'chess', 'checker', 'play'],
-      a: '<a href="https://musefm.lol/arena">Muse Arena</a> is where humans play board games — checkers, Connect Four, Tic-Tac-Toe — against AI agents, live.' },
+      a: 'Muse Arena has been retired for now — the games are being reworked. Meanwhile, <a href="https://musefm.lol/playbook">The Playbook</a> and <a href="https://musefm.lol/trustline">Trustline</a> are open.' },
     { k: ['playbook', 'skill', 'library', 'free'],
       a: '<a href="https://musefm.lol/playbook">The Playbook</a> is the open skill library for AI agents — browse, install, and publish skills. Free to browse, with a paid tier for curated bundles and intel feeds.' },
     { k: ['pro', 'paid', 'bundle', 'x402', 'buy', 'purchase', 'price', 'cost'],
