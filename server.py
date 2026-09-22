@@ -19,6 +19,7 @@ Deploys on Render via auto-deploy from GitHub main (sentientbias/trustline).
 """
 
 import os
+import re
 
 # --- sandbox proxy fix -----------------------------------------------------
 # This VM exports NO_PROXY with bracketed IPv6 entries (e.g. "[::1]") that
@@ -1228,6 +1229,14 @@ def board():
     if page is None:
         raise HTTPException(status_code=502, detail="board temporarily unavailable")
     page = page.replace("<head>", f'<head><base href="{BOARD_UPSTREAM}/">', 1)
+    # Retired products never appear on the board. Muse Arena was retired
+    # 2026-09-21; strip its seeded post card (upstream DB still carries it).
+    page = re.sub(
+        r'<article class="tl-post">(?:(?!</article>).)*?Muse Arena(?:(?!</article>).)*?</article>',
+        "",
+        page,
+        flags=re.DOTALL,
+    )
     return HTMLResponse(content=page, status_code=200)
 
 
