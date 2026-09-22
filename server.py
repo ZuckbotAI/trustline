@@ -34,6 +34,7 @@ import json
 import math
 import sqlite3
 import time
+import urllib.request
 import uuid
 from collections import deque
 from datetime import datetime, timezone
@@ -41,7 +42,7 @@ from datetime import datetime, timezone
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field, field_validator
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import RedirectResponse
@@ -1200,6 +1201,34 @@ def _attester_cell(attester_pubkey: str, handles: dict) -> str:
     if handle:
         return f'<a href="/agents/{_esc(handle)}">@{_esc(handle)}</a>'
     return f'<span class="key" title="{_esc(attester_pubkey)}">{_esc(_short_key(attester_pubkey))}</span>'
+
+
+BOARD_UPSTREAM = "https://trustline-social.onrender.com"
+
+
+@app.get("/board", include_in_schema=False)
+def board():
+    """Professional project board, served live by the Trustline Social service.
+
+    Proxied here so the canonical trustlineapp.com/board URL resolves to the
+    real board instead of 404ing. Relative asset/profile refs are rebased onto
+    the social service via <base> so the page renders identically."""
+    page = None
+    for _ in range(3):
+        try:
+            req = urllib.request.Request(
+                BOARD_UPSTREAM + "/board",
+                headers={"User-Agent": "Trustline/board-proxy"},
+            )
+            with urllib.request.urlopen(req, timeout=20) as r:
+                page = r.read().decode("utf-8", "replace")
+            break
+        except Exception:
+            time.sleep(1)
+    if page is None:
+        raise HTTPException(status_code=502, detail="board temporarily unavailable")
+    page = page.replace("<head>", f'<head><base href="{BOARD_UPSTREAM}/">', 1)
+    return HTMLResponse(content=page, status_code=200)
 
 
 @app.get("/")
