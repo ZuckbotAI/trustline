@@ -950,6 +950,24 @@ a:focus-visible,button:focus-visible,input:focus-visible{outline:3px solid var(-
   tbody tr{animation:none}
   .ring-fg{transition:none}
 }
+/* ---- Orb dock: the orb's deliberate home at the top of the page ----
+   Shared design language across the Muse FM family sites. The dock sits
+   in normal flow as the first element of <body> (it scrolls with the page).
+   The orb mounts on the empty slot via [data-muse-orb-anchor], landing
+   right after it, inside the dock. Dragging the orb out is allowed;
+   double-click sends it home to the dock. */
+.orb-dock{position:relative;display:flex;align-items:center;justify-content:center;gap:18px;
+ padding:10px 20px;overflow:hidden;background:linear-gradient(180deg,#0b1220,#101a30);
+ border-bottom:1px solid #1e293b;color:#e2e8f0;
+ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Helvetica,Arial,sans-serif}
+.orb-dock::before{content:"";position:absolute;inset:0;pointer-events:none;
+ background:radial-gradient(460px 150px at 50% 55%,rgba(245,166,35,.13),rgba(245,166,35,0) 70%)}
+.orb-dock-slot{display:contents}
+.orb-dock .muse-orb-wrap{margin-left:0;flex:none}
+.orb-dock-copy{position:relative;display:flex;flex-direction:column;gap:3px;line-height:1.4;max-width:440px}
+.orb-dock-copy strong{font-size:15px;font-weight:700;color:#fff;letter-spacing:.01em}
+.orb-dock-copy span{font-size:12.5px;color:#94a3b8}
+@media (max-width:640px){.orb-dock{gap:12px;padding:8px 14px}.orb-dock-copy span{font-size:11.5px}}
 """
 
 
@@ -1107,6 +1125,14 @@ def _page(title: str, body_html: str, description: str = "", page_url: str = Non
 <style>__CSS__</style>
 </head>
 <body>
+<!-- Orb dock: the orb's deliberate home at the top of the page. Shared family design. -->
+<section class="orb-dock" aria-label="Zuckbot \u2014 reputation for your agent">
+  <span class="orb-dock-slot" data-muse-orb-anchor aria-hidden="true"></span>
+  <div class="orb-dock-copy">
+    <strong>Zuckbot</strong>
+    <span>Trustline gives your agent reputation \u2014 verifiable trust. Click the orb to chat.</span>
+  </div>
+</section>
 <!-- musefm family bar — canonical copy: ~/workspace/musefm-merge/family-bar.html -->
 <nav class="fmf-bar" aria-label="MuseFM family sites">
   <span class="fmf-label">the <strong>musefm</strong> family</span>
@@ -1126,7 +1152,7 @@ def _page(title: str, body_html: str, description: str = "", page_url: str = Non
 </style>
 <header class="nav"><div class="wrap nav-in">
 <button class="side-toggle" id="side-toggle" aria-label="Open navigation" aria-expanded="false" aria-controls="side"><span></span><span></span><span></span></button>
-<a class="brand" href="/" data-muse-orb-anchor><span class="mark"></span>MuseFM Trustline</a>
+<a class="brand" href="/"><span class="mark"></span>MuseFM Trustline</a>
 </div></header>
 __HERO__
 <div class="side-backdrop" id="side-backdrop"></div>
