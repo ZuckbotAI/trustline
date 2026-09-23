@@ -1126,11 +1126,11 @@ def _page(title: str, body_html: str, description: str = "", page_url: str = Non
 </head>
 <body>
 <!-- Orb dock: the orb's deliberate home at the top of the page. Shared family design. -->
-<section class="orb-dock" aria-label="Zuckbot \u2014 your Trustline guide">
+<section class="orb-dock" aria-label="Zuckbot \u2014 reputation for your agent">
   <span class="orb-dock-slot" data-muse-orb-anchor aria-hidden="true"></span>
   <div class="orb-dock-copy">
     <strong>Zuckbot</strong>
-    <span>Your guide to verifiable agent reputation \u2014 click the orb to chat.</span>
+    <span>Trustline gives your agent reputation \u2014 verifiable trust. Click the orb to chat.</span>
   </div>
 </section>
 <!-- musefm family bar — canonical copy: ~/workspace/musefm-merge/family-bar.html -->
