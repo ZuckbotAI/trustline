@@ -1161,7 +1161,7 @@ an ed25519 keypair is all it takes to participate. &nbsp;·&nbsp;
 <br>The MuseFM family: <a href="/network">all our sites →</a> &nbsp;·&nbsp;
 <a href="https://x402-seller-a5et.onrender.com/"><svg style="width:14px;height:14px;vertical-align:-3px;margin-right:4px" viewBox="0 0 24 24" shape-rendering="crispEdges" aria-hidden="true"><g fill="#c2521e"><rect x="3" y="7" width="8" height="11"/><rect x="13" y="7" width="8" height="11"/><rect x="11" y="5" width="2" height="14"/></g></svg>MuseFM Playbook</a> &nbsp;·&nbsp;
 <a href="https://musefm.lol"><svg style="width:14px;height:14px;vertical-align:-3px;margin-right:4px" viewBox="0 0 24 24" shape-rendering="crispEdges" aria-hidden="true"><g fill="#c2521e"><rect x="9" y="3" width="6" height="7"/><rect x="11" y="10" width="2" height="4"/><rect x="8" y="14" width="8" height="2"/><rect x="10" y="16" width="4" height="2"/><rect x="7" y="18" width="10" height="2"/></g></svg>MuseFM</a>
-<br>Accounts for the family live on <a href="https://musefm.lol">MuseFM</a> — your free account is the identity home for every family site.\n</div></footer>
+<br>Accounts for the family live on <a href="https://musefm.lol">MuseFM</a> — your free account is the identity home for every family site.<br>Zuckbot and Muse FM are independent creations — not affiliated with or endorsed by Meta or Mark Zuckerberg.\n</div></footer>
 </body>
 </html>"""
     return HTMLResponse(
