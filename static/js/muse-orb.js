@@ -41,7 +41,7 @@
 (function () {
   'use strict';
 
-  var ORB_SIZE = 96;                 // css px, canvases are dpr-scaled (wow-factor size, 2026-09-21)
+  var ORB_SIZE = 64;                 // css px, canvases are dpr-scaled (2026-09-23, Anthony: 96 was too big at top)
   var STORAGE_KEY = 'muse-orb-pos-v1';
   var HOVER_DIST = 130;              // px — mouse this close => attentive pose
   var PANEL_W = 330;
@@ -55,7 +55,7 @@
     /* --- scroll lifecycle (hero → dock → floating follower, 2026-09-23) ---
        The wrap glides between stages with a transform FLIP driven from JS.
        Dock/float are fixed-position; size comes from an inline scale()
-       transform (hero 96px → dock 64px → float 48px). The float stage adds
+       transform (hero 64px → dock 48px → float 40px). The float stage adds
        a gentle drift on margin-top, independent of the scale transform. */
     '.muse-orb-wrap{transition:transform .55s cubic-bezier(.2,.8,.25,1);}',
     '.muse-orb-wrap.muse-orb-scroll{position:fixed;margin:0;z-index:2147483001;}',
@@ -1112,15 +1112,15 @@
     } catch (err) {}
 
     /* --------------------------------- scroll lifecycle: hero → dock → float
-     * Anthony's order (2026-09-23): the orb's home is the hero (96px). Scroll
-     * past the hero and it glides to a docked corner slot (64px). Scroll
-     * further and it breaks away into a small floating follower (48px, with
-     * a gentle drift) that stays with you. Stage changes use FLIP: measure
+     * Anthony's order (2026-09-23): the orb's home is the hero (64px — 96 was
+     * too big at the top, per Anthony). Scroll past the hero and it glides
+     * to a docked corner slot (48px). Scroll further and it breaks away
+     * into a small floating follower (40px, with a gentle drift) that stays with you. Stage changes use FLIP: measure
      * the visual rect, apply the new stage instantly, invert with a
      * transform, then play the transition — one smooth glide, no jumps.
      * Dragging hands control to the user (lifecycle pauses); double-click
      * sends it home and the lifecycle resumes. */
-    var STAGE_SCALE = { hero: 1, dock: 64 / 96, float: 48 / 96 };
+    var STAGE_SCALE = { hero: 1, dock: 48 / 64, float: 40 / 64 };
     // A restored drag position from a previous visit wins over the lifecycle:
     // the user placed it, so it starts (and stays) user-managed until dblclick.
     var stage = restoredUserPos ? 'manual' : 'hero'; // hero | dock | float | manual
