@@ -35,7 +35,11 @@
  * Easter egg: the orb is draggable. Double-click sends it home to the logo.
  * Position persists per-site in localStorage.
  *
- * No network calls, no cookies, no tracking. Respects
+ * Click dialogue (2026-09-23): tapping the orb (not a drag) shows a Zuckbot
+ * saying in a bubble, fetched from /api/zuckbot-says/random; tapping the
+ * bubble shows another, and "Ask me anything" opens the chat panel.
+ *
+ * One same-origin fetch (the sayings above), no cookies, no tracking. Respects
  * prefers-reduced-motion. Works on any page with zero configuration.
  * ========================================================================= */
 (function () {
@@ -73,6 +77,20 @@
     '.muse-orb-nudge .muse-orb-nx{position:absolute;top:4px;right:6px;border:0;background:transparent;',
     'color:#94a3b8;font-size:15px;line-height:1;cursor:pointer;padding:4px;}',
     '.muse-orb-nudge .muse-orb-nx:hover{color:#e2e8f0;}',
+    /* --- click dialogue: sayings bubble (2026-09-23 port from musefm) --- */
+    '.muse-orb-says-text{display:block;padding-right:6px;}',
+    '.muse-orb-says .muse-orb-chat{display:block;margin:9px 0 1px;border:1px solid rgba(148,184,220,.4);',
+    'background:rgba(56,189,248,.18);color:#bae6fd;font-size:12px;font-weight:650;',
+    'padding:8px 14px;border-radius:999px;cursor:pointer;min-height:36px;}',
+    '.muse-orb-says .muse-orb-chat:hover{background:rgba(56,189,248,.32);}',
+    /* --- mobile: the sayings dialogue scales up with small screens --- */
+    '@media (max-width:640px){',
+    '.muse-orb-nudge{width:min(330px,84vw);max-width:84vw;font-size:16px;line-height:1.5;',
+    'padding:14px 42px 14px 16px;border-radius:16px;}',
+    '.muse-orb-nudge .muse-orb-nx{font-size:22px;line-height:1;padding:10px;top:4px;right:6px;}',
+    '.muse-orb-says-text{padding-right:8px;}',
+    '.muse-orb-says .muse-orb-chat{font-size:14.5px;min-height:44px;',
+    'padding:11px 18px;margin:12px 0 2px;}}',
     /* --- constellation satellites --- */
     '.muse-orb-sats{position:absolute;left:50%;top:50%;width:0;height:0;pointer-events:none;}',
     '.muse-orb-sat{position:absolute;width:' + SAT_SIZE + 'px;height:' + SAT_SIZE + 'px;',
@@ -242,6 +260,9 @@
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     var proactive = !!options.proactive;   // stage 4: off unless the host opts in
     var timeOverride = (typeof options.timeOverride === 'number') ? options.timeOverride : null;
+    // draggable (2026-09-23 port from musefm): drag-to-place. The host can
+    // pass {draggable:false} for tap-only behavior; default is draggable.
+    var draggable = options.draggable !== false;
 
     // --- anchor: find the logo ---
     function findAnchor() {
@@ -571,6 +592,57 @@
       if (nudgeTimer) clearTimeout(nudgeTimer);
       nudgeTimer = setTimeout(hideNudge, opts.timeoutMs || 9000);
       return true;
+    }
+
+    /* ============================================ click dialogue: sayings
+     * Clicking the orb (not a drag) shows a Zuckbot saying in a bubble above
+     * it. The bubble is clickable: tap it for another saying, or tap
+     * "Ask me anything" to open the chat panel. Fetched from
+     * /api/zuckbot-says/random so the quote bank stays server-side.
+     * (Ported from musefm 2026-09-23; trustline has no hero bubble, so the
+     * saying always uses the floating overlay.) */
+    var saysEl = null, saysTimer = 0, saysFetchAt = 0;
+    function hideSays() {
+      if (saysEl) saysEl.classList.remove('muse-orb-show');
+      if (saysTimer) { clearTimeout(saysTimer); saysTimer = 0; }
+    }
+    function showSaysBubble(text) {
+      if (!saysEl) {
+        saysEl = document.createElement('div');
+        saysEl.className = 'muse-orb-nudge muse-orb-says';
+        saysEl.setAttribute('role', 'status');
+        saysEl.innerHTML = '<button class="muse-orb-nx" aria-label="Dismiss">×</button>' +
+          '<span class="muse-orb-says-text"></span>' +
+          '<button type="button" class="muse-orb-chat">Ask me anything &rarr;</button>';
+        wrap.appendChild(saysEl);
+        saysEl.querySelector('.muse-orb-nx').addEventListener('click', function (e) {
+          e.stopPropagation(); hideSays();
+        });
+        saysEl.querySelector('.muse-orb-chat').addEventListener('click', function (e) {
+          e.stopPropagation(); hideSays(); openPanel();
+        });
+        saysEl.addEventListener('click', function (e) {
+          if (e.target.closest('button')) return;
+          saySomething(); // tap the dialogue for another saying
+        });
+      }
+      saysEl.querySelector('.muse-orb-says-text').textContent = '\u201C' + text + '\u201D';
+      var wrect = wrap.getBoundingClientRect();
+      saysEl.classList.toggle('muse-orb-below', wrect.top < 170);
+      saysEl.classList.toggle('muse-orb-leftedge', wrect.left < 250);
+      saysEl.classList.add('muse-orb-show');
+      if (saysTimer) clearTimeout(saysTimer);
+      saysTimer = setTimeout(hideSays, 9000);
+    }
+    function saySomething() {
+      var now = Date.now();
+      if (now - saysFetchAt < 2000) return; // throttle fast double-taps
+      saysFetchAt = now;
+      setPose('happy', 900);
+      fetch('/api/zuckbot-says/random', { cache: 'no-store' })
+        .then(function (r) { return r.json(); })
+        .then(function (d) { if (d && d.text) showSaysBubble(d.text); })
+        .catch(function () { /* silent: no saying, no noise */ });
     }
 
     /* ============================================ STAGE 5: constellation
@@ -1017,46 +1089,105 @@
       requestAnimationFrame(frame);
     }
 
-    /* -------------------------------------------------- drag (the easter egg) */
+    /* -------------------------------------------------- drag (2026-09-23:
+     * drag-to-place is back — a drag moves the wrap as a user offset; a plain
+     * press opens the sayings dialogue via endDrag's tap path. If a dock
+     * manager (window.MuseOrbDock, musefm-style) is present the drag applies
+     * on top of its target; otherwise the orb drags freely via left/top like
+     * the original easter egg. */
     var drag = null;
+    // dock-managed moves: read the dock's current un-offset target so the
+    // drag delta applies cleanly on top of it. Null when no dock manager is
+    // present (this site's legacy free-drag mode).
+    function dockBase() {
+      var d = window.MuseOrbDock;
+      if (d && wrap.classList.contains('muse-orb-dockmanaged')) {
+        var b = d.getBase();
+        if (b && typeof b.x === 'number') return b;
+      }
+      return null;
+    }
     fxCanvas.addEventListener('pointerdown', function (e) {
+      hideSays();
+      if (!draggable) { poke(-2.5); return; } // tap-only host: track the press, never drag
       e.preventDefault();
       poke(-2.5);
       if (sleeping) { sleeping = false; setPose('happy', 800); }
-      drag = { sx: e.clientX, sy: e.clientY, moved: false, ox: 0, oy: 0 };
+      drag = { sx: e.clientX, sy: e.clientY, moved: false, ox: 0, oy: 0, ddx: 0, ddy: 0 };
       var rc = wrap.getBoundingClientRect();
       drag.ox = e.clientX - rc.left;
       drag.oy = e.clientY - rc.top;
       try { fxCanvas.setPointerCapture(e.pointerId); } catch (err) {}
     });
     fxCanvas.addEventListener('pointermove', function (e) {
-      if (!drag) return;
+      if (!drag || !draggable) return;
       if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) > 7) {
         drag.moved = true;
         wrap.classList.add('muse-orb-fixed', 'muse-orb-dragging');
+        // kill transitions while dragging — the orb must track the pointer
+        // 1:1 (restored on drop)
+        wrap.style.transition = 'none';
+        // Snapshot where the orb actually is RIGHT NOW (includes any
+        // persisted user offset from a previous drag). The finger delta
+        // applies on top of this — without the snapshot the orb would
+        // teleport back by the old offset the moment a new drag starts,
+        // landing far from the finger. (iOS glitch, 2026-09-23.)
+        var rc0 = wrap.getBoundingClientRect();
+        drag.snapX = rc0.left;
+        drag.snapY = rc0.top;
         setPose('playful');
       }
       if (drag.moved) {
-        wrap.style.left = Math.max(0, Math.min(window.innerWidth - ORB_SIZE, e.clientX - drag.ox)) + 'px';
-        wrap.style.top = Math.max(0, Math.min(window.innerHeight - ORB_SIZE, e.clientY - drag.oy)) + 'px';
-        wrap.style.right = 'auto';
+        var b = dockBase();
+        if (b) {
+          var dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
+          drag.ddx = dx; drag.ddy = dy;
+          wrap.style.transform =
+            'translate(' + Math.round(drag.snapX + dx) + 'px,' + Math.round(drag.snapY + dy) +
+            'px) scale(' + b.s + ')';
+        } else {
+          wrap.style.left = Math.max(0, Math.min(window.innerWidth - ORB_SIZE, e.clientX - drag.ox)) + 'px';
+          wrap.style.top = Math.max(0, Math.min(window.innerHeight - ORB_SIZE, e.clientY - drag.oy)) + 'px';
+          wrap.style.right = 'auto';
+        }
       }
     });
     function endDrag(e) {
       if (!drag) return;
       var wasDrag = drag.moved;
+      var dropDx = drag.ddx, dropDy = drag.ddy;
+      // Final rendered spot before handing back to the dock (measured
+      // before classes/transitions change — includes the old offset).
+      var endRect = wasDrag ? wrap.getBoundingClientRect() : null;
       drag = null;
       wrap.classList.remove('muse-orb-dragging');
       if (wasDrag) {
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify({ x: wrap.style.left, y: wrap.style.top }));
-        } catch (err) { /* private mode */ }
+        wrap.style.transition = ''; // transitions back on
+        var dock = window.MuseOrbDock;
+        if (dock && wrap.classList.contains('muse-orb-dockmanaged')) {
+          // dock-managed: persist the TOTAL offset (old offset + this
+          // drag's delta), measured from the final rendered position.
+          wrap.classList.remove('muse-orb-fixed'); // dock owns positioning
+          var db = (dock.getBase && dock.getBase()) || null;
+          if (db && endRect) {
+            dock.setOffset(endRect.left - db.x, endRect.top - db.y);
+          } else {
+            dock.setOffset(dropDx, dropDy);
+          }
+        } else {
+          // legacy free mode: persist the dropped spot
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ x: wrap.style.left, y: wrap.style.top }));
+          } catch (err) { /* private mode */ }
+        }
         setPose('happy', 1200);
         poke(3.2);
         if (fanOpen) positionSatellites(); // hub moved — re-aim the fan
       } else {
         poke(3.5);
-        togglePanel();
+        hideNudge();
+        if (panelOpen) { closePanel(); hideSays(); }
+        else saySomething(); // tap = a saying; the bubble leads to chat
       }
     }
     fxCanvas.addEventListener('pointerup', endDrag);
@@ -1067,7 +1198,13 @@
       sendHome();
     });
     fxCanvas.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); togglePanel(); }
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        hideNudge();
+        if (panelOpen) { closePanel(); hideSays(); }
+        else saySomething(); // keyboard tap = a saying, like pointer tap
+      }
+      if (e.key === 'Escape') hideSays();
     });
 
     function sendHome() {
@@ -1166,7 +1303,17 @@
       if (panelOpen) closePanel();
       else openPanel();
     }
-    window.addEventListener('resize', function () { if (panelOpen) positionPanel(); });
+    window.addEventListener('resize', function () {
+      if (panelOpen) positionPanel();
+      // keep a user-placed orb on-screen when the viewport shrinks
+      if (wrap.classList.contains('muse-orb-fixed')) {
+        var cx = parseFloat(wrap.style.left) || 0, cy = parseFloat(wrap.style.top) || 0;
+        cx = Math.max(0, Math.min(window.innerWidth - ORB_SIZE, cx));
+        cy = Math.max(0, Math.min(window.innerHeight - ORB_SIZE, cy));
+        wrap.style.left = cx + 'px';
+        wrap.style.top = cy + 'px';
+      }
+    });
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' && panelOpen) closePanel();
     });
