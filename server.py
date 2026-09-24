@@ -442,6 +442,15 @@ def health():
     return {"ok": True, "service": "trustline", "version": "0.1.0", "time": _now_iso()}
 
 
+@app.get("/api/zuckbot-says/random", include_in_schema=False)
+def api_zuckbot_says_random():
+    """A random Zuckbot saying for the orb's tap dialogue."""
+    import random as _random
+    from zuckbot_quotes import QUOTES as _QUOTES
+    q = _random.choice(_QUOTES)
+    return {"ok": True, "text": q["text"], "tag": q.get("tag")}
+
+
 # ------------------------------------------------- SSO client: Sign in with MuseFM
 # Human login is OPTIONAL convenience only — it never gates or replaces the
 # ed25519 agent identity system. Agents keep working with keypairs, no login.

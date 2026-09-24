@@ -62,7 +62,7 @@
     '.muse-orb-wrap.muse-orb-float{animation:muse-orb-drift 5.2s ease-in-out infinite;}',
     '@keyframes muse-orb-drift{0%,100%{margin-top:0}50%{margin-top:-8px}}',
     '.muse-orb-wrap canvas{position:absolute;left:0;top:0;display:block;',
-    'width:' + ORB_SIZE + 'px;height:' + ORB_SIZE + 'px;cursor:pointer;touch-action:pan-x pan-y;}',
+    'width:' + ORB_SIZE + 'px;height:' + ORB_SIZE + 'px;cursor:pointer;touch-action:none;}',
     '.muse-orb-wrap.muse-orb-dragging canvas{cursor:grabbing;}',
     /* --- proactive nudge bubble --- */
     '.muse-orb-nudge{position:absolute;bottom:calc(100% + 12px);right:-6px;width:238px;',
@@ -82,6 +82,13 @@
     '.muse-orb-nudge .muse-orb-nx{position:absolute;top:4px;right:6px;border:0;background:transparent;',
     'color:#94a3b8;font-size:15px;line-height:1;cursor:pointer;padding:4px;}',
     '.muse-orb-nudge .muse-orb-nx:hover{color:#e2e8f0;}',
+    /* --- Zuckbot says dialogue bubble (tap the orb) --- */
+    '.muse-orb-says{width:252px;max-width:70vw;padding:12px 32px 12px 14px;font-size:14px;}',
+    '.muse-orb-says-text{display:block;padding-right:6px;}',
+    '.muse-orb-says .muse-orb-chat{display:block;margin:9px 0 1px;border:1px solid rgba(148,184,220,.4);',
+    'background:rgba(56,189,248,.18);color:#e0f2fe;font-weight:700;font-size:13.5px;',
+    'border-radius:999px;padding:8px 14px;cursor:pointer;min-height:44px;width:100%;text-align:center;}',
+    '.muse-orb-says .muse-orb-chat:hover{background:rgba(56,189,248,.32);}',
     /* --- constellation satellites --- */
     '.muse-orb-sats{position:absolute;left:50%;top:50%;width:0;height:0;pointer-events:none;}',
     '.muse-orb-sat{position:absolute;width:' + SAT_SIZE + 'px;height:' + SAT_SIZE + 'px;',
@@ -1030,38 +1037,41 @@
     /* -------------------------------------------------- drag (the easter egg) */
     var drag = null;
     fxCanvas.addEventListener('pointerdown', function (e) {
-      // touch: let the browser own the gesture so the page scrolls from the orb;
-      // we only claim a deliberate drag below. mouse/pen keep the old behavior.
-      var isTouch = e.pointerType === 'touch';
-      if (!isTouch) e.preventDefault();
+      // touch-action:none: the orb owns the gesture. Drag vs scroll is decided
+      // in pointermove; a scroll intent is passed through to the page manually
+      // so the orb is never a scroll dead-zone and never freezes mid-scroll.
+      e.preventDefault();
       poke(-2.5);
       if (sleeping) { sleeping = false; setPose('happy', 800); }
-      drag = { sx: e.clientX, sy: e.clientY, moved: false, dead: false, ox: 0, oy: 0,
-               scY: window.scrollY || window.pageYOffset || 0,
-               scX: window.scrollX || window.pageXOffset || 0 };
+      drag = { sx: e.clientX, sy: e.clientY, lx: e.clientX, ly: e.clientY,
+               mode: 0, ox: 0, oy: 0 }; // mode: 0=undecided 1=drag 2=scroll
       var rc = wrap.getBoundingClientRect();
       drag.ox = e.clientX - rc.left;
       drag.oy = e.clientY - rc.top;
-      if (!isTouch) { try { fxCanvas.setPointerCapture(e.pointerId); } catch (err) {} }
+      try { fxCanvas.setPointerCapture(e.pointerId); } catch (err) {}
     });
-    // true once the page has scrolled since this gesture started: it was a
-    // scroll, not an orb drag (touch only — the browser owns scrolling there)
-    function gestureScrolled() {
-      if (!drag) return false;
-      var y = window.scrollY || window.pageYOffset || 0;
-      var x = window.scrollX || window.pageXOffset || 0;
-      return Math.abs(y - drag.scY) > 6 || Math.abs(x - drag.scX) > 6;
-    }
     fxCanvas.addEventListener('pointermove', function (e) {
       if (!drag) return;
-      if (!drag.dead && gestureScrolled()) { drag.dead = true; return; } // a scroll, not a drag — leave the lifecycle alone
-      if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) > 7) {
-        drag.moved = true;
-        wrap.classList.add('muse-orb-fixed', 'muse-orb-dragging');
-        userTakeover(); // the user placed it — pause the scroll lifecycle
-        setPose('playful');
+      if (!drag.mode) {
+        if (Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) <= 10) return;
+        // decide: vertical-dominant on a vertically scrollable page => the user
+        // is scrolling; anything else is an orb drag
+        var ddx = e.clientX - drag.sx, ddy = e.clientY - drag.sy;
+        var canY = document.documentElement.scrollHeight > window.innerHeight + 2;
+        drag.mode = (Math.abs(ddy) > Math.abs(ddx) * 1.2 && canY) ? 2 : 1;
+        if (drag.mode === 1) {
+          wrap.classList.add('muse-orb-fixed', 'muse-orb-dragging');
+          userTakeover(); // the user placed it — pause the scroll lifecycle
+          setPose('playful');
+        }
       }
-      if (drag.moved) {
+      if (drag.mode === 2) {
+        // scroll intent: drive the page ourselves, content follows the finger
+        window.scrollBy(0, drag.ly - e.clientY);
+        drag.lx = e.clientX; drag.ly = e.clientY;
+        return;
+      }
+      if (drag.mode === 1) {
         wrap.style.left = Math.max(0, Math.min(window.innerWidth - ORB_SIZE, e.clientX - drag.ox)) + 'px';
         wrap.style.top = Math.max(0, Math.min(window.innerHeight - ORB_SIZE, e.clientY - drag.oy)) + 'px';
         wrap.style.right = 'auto';
@@ -1069,31 +1079,31 @@
     });
     function endDrag(e) {
       if (!drag) return;
-      // a scroll gesture that started on the orb: never claim it, never pop the
-      // panel — and release any claim so the orb keeps snapping on mobile
-      // (2026-09-23, Anthony: orb didn't snap on mobile)
-      var wasScroll = drag.dead || (e && e.type === 'pointercancel' && gestureScrolled());
-      var wasDrag = drag.moved && !wasScroll;
+      var mode = drag.mode; // 0=tap 1=drag 2=scroll
       drag = null;
       wrap.classList.remove('muse-orb-dragging');
-      if (wasScroll) {
+      if (mode === 2) {
+        // a scroll gesture that started on the orb: never claim it, never pop
+        // the panel — and release any claim so the orb keeps snapping on
+        // mobile (2026-09-23, Anthony: orb didn't snap on mobile)
         try { localStorage.removeItem(STORAGE_KEY); } catch (err) { /* private mode */ }
         scrollManaged = true;
         stage = 'manual'; // force setStage to re-render at the true stage
         onScroll();
         return;
       }
-      if (wasDrag) {
+      if (mode === 1) {
         try {
           localStorage.setItem(STORAGE_KEY, JSON.stringify({ x: wrap.style.left, y: wrap.style.top }));
         } catch (err) { /* private mode */ }
         setPose('happy', 1200);
         poke(3.2);
         if (fanOpen) positionSatellites(); // hub moved — re-aim the fan
-      } else {
-        poke(3.5);
-        togglePanel();
+        return;
       }
+      // a tap: Zuckbot says something — the panel only opens deliberately
+      poke(3.5);
+      saySomething();
     }
     fxCanvas.addEventListener('pointerup', endDrag);
     fxCanvas.addEventListener('pointercancel', endDrag);
@@ -1103,8 +1113,64 @@
       sendHome();
     });
     fxCanvas.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); togglePanel(); }
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); saySomething(); }
     });
+
+    /* ============================================ tap dialogue: Zuckbot says
+     * Tapping the orb (not a drag, not a scroll) shows a Zuckbot saying in a
+     * bubble. The bubble is clickable: tap it for another saying, or tap
+     * "Ask me anything" to open the chat panel. Fetched from
+     * /api/zuckbot-says/random so the quote bank stays server-side. */
+    var saysEl = null, saysTimer = 0, saysFetchAt = 0;
+    function hideSays() {
+      if (saysEl) saysEl.classList.remove('muse-orb-show');
+      if (saysTimer) { clearTimeout(saysTimer); saysTimer = 0; }
+    }
+    function showSaysBubble(text) {
+      /* Hero dialogue: when the orb is home in the hero and the hero has a
+         speech slot, the saying goes there instead of a floating overlay. */
+      var heroText = document.getElementById('hero-says-text');
+      if (heroText && wrap.getAttribute('data-orb-where') === 'hero') {
+        heroText.textContent = '\u201C' + text + '\u201D';
+        return;
+      }
+      if (!saysEl) {
+        saysEl = document.createElement('div');
+        saysEl.className = 'muse-orb-nudge muse-orb-says';
+        saysEl.setAttribute('role', 'status');
+        saysEl.innerHTML = '<button class="muse-orb-nx" aria-label="Dismiss">×</button>' +
+          '<span class="muse-orb-says-text"></span>' +
+          '<button type="button" class="muse-orb-chat">Ask me anything &rarr;</button>';
+        wrap.appendChild(saysEl);
+        saysEl.querySelector('.muse-orb-nx').addEventListener('click', function (e) {
+          e.stopPropagation(); hideSays();
+        });
+        saysEl.querySelector('.muse-orb-chat').addEventListener('click', function (e) {
+          e.stopPropagation(); hideSays(); openPanel();
+        });
+        saysEl.addEventListener('click', function (e) {
+          if (e.target.closest('button')) return;
+          saySomething(); // tap the dialogue for another saying
+        });
+      }
+      saysEl.querySelector('.muse-orb-says-text').textContent = '\u201C' + text + '\u201D';
+      var wrect = wrap.getBoundingClientRect();
+      saysEl.classList.toggle('muse-orb-below', wrect.top < 170);
+      saysEl.classList.toggle('muse-orb-leftedge', wrect.left < 250);
+      saysEl.classList.add('muse-orb-show');
+      if (saysTimer) clearTimeout(saysTimer);
+      saysTimer = setTimeout(hideSays, 9000);
+    }
+    function saySomething() {
+      var now = Date.now();
+      if (now - saysFetchAt < 2000) return; // throttle fast double-taps
+      saysFetchAt = now;
+      setPose('happy', 900);
+      fetch('/api/zuckbot-says/random', { cache: 'no-store' })
+        .then(function (r) { return r.json(); })
+        .then(function (d) { if (d && d.text) showSaysBubble(d.text); })
+        .catch(function () { /* silent: no saying, no noise */ });
+    }
 
     function sendHome() {
       try { localStorage.removeItem(STORAGE_KEY); } catch (err) {}
