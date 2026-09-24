@@ -52,6 +52,15 @@
     '.muse-orb-wrap{display:inline-flex;align-items:center;justify-content:center;',
     'margin-left:10px;vertical-align:middle;position:relative;z-index:2147483000;}',
     '.muse-orb-wrap.muse-orb-fixed{position:fixed;margin:0;z-index:2147483001;}',
+    /* --- scroll lifecycle (hero → dock → floating follower, 2026-09-23) ---
+       The wrap glides between stages with a transform FLIP driven from JS.
+       Dock/float are fixed-position; size comes from an inline scale()
+       transform (hero 96px → dock 64px → float 48px). The float stage adds
+       a gentle drift on margin-top, independent of the scale transform. */
+    '.muse-orb-wrap{transition:transform .55s cubic-bezier(.2,.8,.25,1);}',
+    '.muse-orb-wrap.muse-orb-scroll{position:fixed;margin:0;z-index:2147483001;}',
+    '.muse-orb-wrap.muse-orb-float{animation:muse-orb-drift 5.2s ease-in-out infinite;}',
+    '@keyframes muse-orb-drift{0%,100%{margin-top:0}50%{margin-top:-8px}}',
     '.muse-orb-wrap canvas{position:absolute;left:0;top:0;display:block;',
     'width:' + ORB_SIZE + 'px;height:' + ORB_SIZE + 'px;cursor:pointer;touch-action:none;}',
     '.muse-orb-wrap.muse-orb-dragging canvas{cursor:grabbing;}',
@@ -129,7 +138,8 @@
     '.muse-orb-form button:hover{background:#0f172a;}',
     '.muse-orb-wrap canvas:focus-visible{outline:2px solid #38bdf8;outline-offset:3px;border-radius:50%;}',
     '@media (prefers-reduced-motion:reduce){.muse-orb-typing span{animation:none;opacity:.7;}',
-    '.muse-orb-sat{transition:none;}.muse-orb-nudge{transition:none;}}'
+    '.muse-orb-sat{transition:none;}.muse-orb-nudge{transition:none;}',
+    '.muse-orb-wrap{transition:none;}.muse-orb-wrap.muse-orb-float{animation:none;}}'
   ].join('');
 
   function injectCSS() {
@@ -1034,6 +1044,7 @@
       if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) > 7) {
         drag.moved = true;
         wrap.classList.add('muse-orb-fixed', 'muse-orb-dragging');
+        userTakeover(); // the user placed it — pause the scroll lifecycle
         setPose('playful');
       }
       if (drag.moved) {
@@ -1072,14 +1083,23 @@
 
     function sendHome() {
       try { localStorage.removeItem(STORAGE_KEY); } catch (err) {}
-      wrap.classList.remove('muse-orb-fixed');
+      wrap.classList.remove('muse-orb-fixed', 'muse-orb-scroll', 'muse-orb-float');
       wrap.style.left = wrap.style.top = wrap.style.right = '';
+      wrap.style.transform = '';
       if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(wrap, anchor.nextSibling);
+      // hand control back to the scroll lifecycle and bring the hero into view
+      scrollManaged = true;
+      stage = 'hero';
+      dockScrollY = 0;
       setPose('happy', 1200);
       poke(2.5);
       if (panelOpen) positionPanel();
+      try {
+        window.scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' });
+      } catch (e) { window.scrollTo(0, 0); }
     }
 
+    var restoredUserPos = false; // set below if a saved drag position is restored
     try {
       var saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
       if (saved && typeof saved.x === 'string') {
@@ -1087,8 +1107,148 @@
         document.body.appendChild(wrap);
         wrap.style.left = saved.x;
         wrap.style.top = saved.y;
+        restoredUserPos = true;
       }
     } catch (err) {}
+
+    /* --------------------------------- scroll lifecycle: hero → dock → float
+     * Anthony's order (2026-09-23): the orb's home is the hero (96px). Scroll
+     * past the hero and it glides to a docked corner slot (64px). Scroll
+     * further and it breaks away into a small floating follower (48px, with
+     * a gentle drift) that stays with you. Stage changes use FLIP: measure
+     * the visual rect, apply the new stage instantly, invert with a
+     * transform, then play the transition — one smooth glide, no jumps.
+     * Dragging hands control to the user (lifecycle pauses); double-click
+     * sends it home and the lifecycle resumes. */
+    var STAGE_SCALE = { hero: 1, dock: 64 / 96, float: 48 / 96 };
+    // A restored drag position from a previous visit wins over the lifecycle:
+    // the user placed it, so it starts (and stays) user-managed until dblclick.
+    var stage = restoredUserPos ? 'manual' : 'hero'; // hero | dock | float | manual
+    var scrollManaged = !restoredUserPos;  // false once the user drags / restores a spot
+    var dockScrollY = 0;         // scrollY when we entered dock (float threshold base)
+    var scrollRaf = 0;
+    var heroEl = null;
+    if (anchor && anchor.closest) {
+      // NOTE: match the outer hero first — the nearest '.hero-orb' row is just
+      // the orb's slot at the top of the hero; docking should wait until the
+      // whole hero (headline included) has scrolled past.
+      heroEl = anchor.closest('.hero-dark, .hero') ||
+               anchor.closest('.hero-orb') ||
+               anchor.parentElement;
+    }
+
+    // visual center the orb should sit at for a fixed stage (unscaled coords)
+    function stageCenter(s) {
+      var sc = STAGE_SCALE[s] || 1;
+      var m = (s === 'float') ? 20 : 18;   // viewport margin, css px
+      var vis = ORB_SIZE * sc;             // visual size at this stage
+      return {
+        x: window.innerWidth - m - vis / 2,
+        y: window.innerHeight - m - vis / 2,
+        scale: sc
+      };
+    }
+
+    function applyStageInstant(s) {
+      if (s === 'hero') {
+        wrap.classList.remove('muse-orb-fixed', 'muse-orb-scroll', 'muse-orb-float');
+        wrap.style.left = wrap.style.top = wrap.style.right = '';
+        wrap.style.transform = '';
+      } else {
+        var c = stageCenter(s);
+        wrap.classList.add('muse-orb-fixed', 'muse-orb-scroll');
+        wrap.classList.toggle('muse-orb-float', s === 'float');
+        wrap.style.right = 'auto';
+        wrap.style.left = (c.x - ORB_SIZE / 2) + 'px';
+        wrap.style.top = (c.y - ORB_SIZE / 2) + 'px';
+        wrap.style.transform = 'scale(' + c.scale + ')';
+      }
+    }
+
+    function setStage(s, animate) {
+      if (s === stage) return;
+      var prev = stage;
+      var sy = window.scrollY || window.pageYOffset || 0;
+      if (!animate || reduced) {
+        applyStageInstant(s);
+        stage = s;
+        if (s !== 'hero' && !dockScrollY) dockScrollY = sy;
+        if (s === 'hero') dockScrollY = 0;
+        return;
+      }
+      // FLIP: measure visual rect, apply stage, measure again, invert, play.
+      // Math is center-based; transform-origin stays at the default (center),
+      // so visual center == unscaled box center and scale composes cleanly.
+      var r0 = wrap.getBoundingClientRect();
+      var c0x = r0.left + r0.width / 2, c0y = r0.top + r0.height / 2;
+      var sc0 = (prev === 'manual') ? 1 : (STAGE_SCALE[prev] || 1);
+      wrap.style.transition = 'none';
+      applyStageInstant(s);
+      var r1 = wrap.getBoundingClientRect();
+      var c1x = r1.left + r1.width / 2, c1y = r1.top + r1.height / 2;
+      var sc1 = STAGE_SCALE[s] || 1;
+      var dx = c0x - c1x, dy = c0y - c1y;
+      wrap.style.transform = 'translate(' + dx.toFixed(1) + 'px,' + dy.toFixed(1) + 'px) scale(' + sc0 + ')';
+      void wrap.offsetWidth; // reflow so the inverted state paints before playing
+      wrap.style.transition = '';
+      wrap.style.transform = (s === 'hero') ? '' : 'scale(' + sc1 + ')';
+      stage = s;
+      if (s !== 'hero' && !dockScrollY) dockScrollY = sy;
+      if (s === 'hero') dockScrollY = 0;
+      if (panelOpen) positionPanel();
+    }
+
+    // the user grabbed the orb — their placement wins, lifecycle pauses
+    function userTakeover() {
+      scrollManaged = false;
+      stage = 'manual';
+      wrap.classList.remove('muse-orb-scroll', 'muse-orb-float');
+      wrap.style.transform = '';
+    }
+
+    function pickStage() {
+      var sy = window.scrollY || window.pageYOffset || 0;
+      var vh = window.innerHeight || 800;
+      if (heroEl) {
+        var hb = heroEl.getBoundingClientRect().bottom;
+        if (stage === 'hero') {
+          if (hb >= 40) return 'hero';
+          // scrolled past the hero: dock, or straight to float on a long jump
+          return (sy > vh * 1.4) ? 'float' : 'dock';
+        }
+        if (hb >= 160) return 'hero'; // hero well back in view (hysteresis)
+        if (sy > dockScrollY + vh * 0.9) return 'float';
+        if (stage === 'float' && sy < dockScrollY + vh * 0.9 - 80) return 'dock';
+        return stage; // dock holds until the hero comes back or we go deeper
+      }
+      // no hero reference (fallback mount): plain scroll-depth thresholds
+      if (sy > 140 + vh) return 'float';
+      if (sy > 140) return 'dock';
+      return 'hero';
+    }
+
+    function onScroll() {
+      if (!scrollManaged) return;
+      var s = pickStage();
+      if (s !== stage) setStage(s, true);
+    }
+
+    function requestScrollUpdate() {
+      if (scrollRaf) return;
+      scrollRaf = requestAnimationFrame(function () { scrollRaf = 0; onScroll(); });
+    }
+    window.addEventListener('scroll', requestScrollUpdate, { passive: true });
+    window.addEventListener('resize', function () {
+      if (!scrollManaged) return;
+      if (stage === 'dock' || stage === 'float') applyStageInstant(stage);
+    });
+
+    // init: honor the actual scroll position (e.g. refreshed mid-page), no animation
+    (function initStage() {
+      if (!scrollManaged) return;
+      var s = pickStage();
+      if (s !== 'hero') setStage(s, false);
+    })();
 
     /* ------------------------------------------------------------- panel */
     var panelOpen = false;
