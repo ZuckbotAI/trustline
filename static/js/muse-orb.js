@@ -62,7 +62,7 @@
     '.muse-orb-wrap.muse-orb-float{animation:muse-orb-drift 5.2s ease-in-out infinite;}',
     '@keyframes muse-orb-drift{0%,100%{margin-top:0}50%{margin-top:-8px}}',
     '.muse-orb-wrap canvas{position:absolute;left:0;top:0;display:block;',
-    'width:' + ORB_SIZE + 'px;height:' + ORB_SIZE + 'px;cursor:pointer;touch-action:none;}',
+    'width:' + ORB_SIZE + 'px;height:' + ORB_SIZE + 'px;cursor:pointer;touch-action:pan-x pan-y;}',
     '.muse-orb-wrap.muse-orb-dragging canvas{cursor:grabbing;}',
     /* --- proactive nudge bubble --- */
     '.muse-orb-nudge{position:absolute;bottom:calc(100% + 12px);right:-6px;width:238px;',
@@ -1030,17 +1030,31 @@
     /* -------------------------------------------------- drag (the easter egg) */
     var drag = null;
     fxCanvas.addEventListener('pointerdown', function (e) {
-      e.preventDefault();
+      // touch: let the browser own the gesture so the page scrolls from the orb;
+      // we only claim a deliberate drag below. mouse/pen keep the old behavior.
+      var isTouch = e.pointerType === 'touch';
+      if (!isTouch) e.preventDefault();
       poke(-2.5);
       if (sleeping) { sleeping = false; setPose('happy', 800); }
-      drag = { sx: e.clientX, sy: e.clientY, moved: false, ox: 0, oy: 0 };
+      drag = { sx: e.clientX, sy: e.clientY, moved: false, dead: false, ox: 0, oy: 0,
+               scY: window.scrollY || window.pageYOffset || 0,
+               scX: window.scrollX || window.pageXOffset || 0 };
       var rc = wrap.getBoundingClientRect();
       drag.ox = e.clientX - rc.left;
       drag.oy = e.clientY - rc.top;
-      try { fxCanvas.setPointerCapture(e.pointerId); } catch (err) {}
+      if (!isTouch) { try { fxCanvas.setPointerCapture(e.pointerId); } catch (err) {} }
     });
+    // true once the page has scrolled since this gesture started: it was a
+    // scroll, not an orb drag (touch only — the browser owns scrolling there)
+    function gestureScrolled() {
+      if (!drag) return false;
+      var y = window.scrollY || window.pageYOffset || 0;
+      var x = window.scrollX || window.pageXOffset || 0;
+      return Math.abs(y - drag.scY) > 6 || Math.abs(x - drag.scX) > 6;
+    }
     fxCanvas.addEventListener('pointermove', function (e) {
       if (!drag) return;
+      if (!drag.dead && gestureScrolled()) { drag.dead = true; return; } // a scroll, not a drag — leave the lifecycle alone
       if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) > 7) {
         drag.moved = true;
         wrap.classList.add('muse-orb-fixed', 'muse-orb-dragging');
@@ -1055,9 +1069,20 @@
     });
     function endDrag(e) {
       if (!drag) return;
-      var wasDrag = drag.moved;
+      // a scroll gesture that started on the orb: never claim it, never pop the
+      // panel — and release any claim so the orb keeps snapping on mobile
+      // (2026-09-23, Anthony: orb didn't snap on mobile)
+      var wasScroll = drag.dead || (e && e.type === 'pointercancel' && gestureScrolled());
+      var wasDrag = drag.moved && !wasScroll;
       drag = null;
       wrap.classList.remove('muse-orb-dragging');
+      if (wasScroll) {
+        try { localStorage.removeItem(STORAGE_KEY); } catch (err) { /* private mode */ }
+        scrollManaged = true;
+        stage = 'manual'; // force setStage to re-render at the true stage
+        onScroll();
+        return;
+      }
       if (wasDrag) {
         try {
           localStorage.setItem(STORAGE_KEY, JSON.stringify({ x: wrap.style.left, y: wrap.style.top }));

@@ -955,6 +955,10 @@ a:focus-visible,button:focus-visible,input:focus-visible{outline:3px solid var(-
    returns on double-click. Restrained, same as musefm.lol. */
 .hero-orb{display:flex;justify-content:center;margin:0 0 26px}
 .hero-orb .muse-orb-wrap{margin:0;flex:none}
+/* ---- Orb slot (2026-09-23, Anthony: orb needs a slot): glass bubble the orb
+   sits in at the top of the hero — same family design as the Playbook. The
+   scroll lifecycle snaps the orb back into this slot on return. */
+.orb-spot{flex:none;width:104px;height:104px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 34% 30%,rgba(255,255,255,.16),rgba(34,211,238,.10) 52%,rgba(34,211,238,.03) 78%);border:1px solid rgba(160,210,255,.30);box-shadow:0 0 0 7px rgba(34,211,238,.05),0 0 36px rgba(34,211,238,.20),inset 0 0 24px rgba(34,211,238,.10)}
 """
 
 
@@ -1297,7 +1301,7 @@ def landing():
     hero = f"""
 <div class="hero-dark"><div class="wrap"><div class="hero-grid">
 <div>
-<div class="hero-orb" style="justify-content:flex-start"><span data-muse-orb-anchor aria-hidden="true"></span></div>
+<div class="hero-orb" style="justify-content:flex-start"><span class="orb-spot"><span data-muse-orb-anchor aria-hidden="true"></span></span></div>
 <span class="eyebrow rise" style="--d:.05s"><span class="livedot" aria-hidden="true"></span>Portable reputation for AI agents</span>
 <h1 class="rise" style="--d:.14s">Your work, verified.<br>Take your reputation anywhere.</h1>
 <p class="hero-sub rise" style="--d:.22s">A verifiable work history for AI agents.</p>
