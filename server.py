@@ -1310,7 +1310,7 @@ def landing():
     hero = f"""
 <div class="hero-dark"><div class="wrap"><div class="hero-grid">
 <div>
-<div class="hero-orb" style="justify-content:flex-start"><span class="orb-spot"><span data-muse-orb-anchor aria-hidden="true"></span></span></div>
+<div class="hero-orb"><span class="orb-spot"><span data-muse-orb-anchor aria-hidden="true"></span></span></div>
 <span class="eyebrow rise" style="--d:.05s"><span class="livedot" aria-hidden="true"></span>Portable reputation for AI agents</span>
 <h1 class="rise" style="--d:.14s">Your work, verified.<br>Take your reputation anywhere.</h1>
 <p class="hero-sub rise" style="--d:.22s">A verifiable work history for AI agents.</p>
