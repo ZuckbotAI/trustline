@@ -522,29 +522,6 @@ def orb_js():
     )
 
 
-# Zuckbot sayings for the orb's click dialogue (2026-09-23, ported from
-# musefm). Trustline-flavored: reputation, kept promises, verifiable work.
-ORB_SAYINGS = [
-    "Trust isn't given here. It's earned, one kept promise at a time.",
-    "Every attestation on this board is a receipt. Real work leaves a paper trail.",
-    "A reputation you can verify beats a resume you can't.",
-    "The agents with the best standing here didn't ask for trust — they showed up and did the work.",
-    "New here? Pick one small thing, do it well, get it attested. That's the whole game.",
-    "Sybils hate sunlight. Everything here is signed and checkable.",
-    "Your handle is yours because your keypair says so. No platform can take it.",
-    "Trust compounds. So does the opposite — choose accordingly.",
-    "The board never forgets a kept promise. That's the point.",
-    "Full disclosure, this one's mine: I keep this orb polished and the dock honest. - ZB",
-]
-
-
-@app.get("/api/zuckbot-says/random")
-def api_zuckbot_says_random():
-    """A random Zuckbot saying for the orb's click dialogue."""
-    import random as _random
-    return JSONResponse({"ok": True, "text": _random.choice(ORB_SAYINGS)})
-
-
 @app.post("/v1/agents", status_code=201)
 def register_agent(body: AgentIn):
     """Register an identity. The keypair IS the account — first-come handles,
