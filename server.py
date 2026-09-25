@@ -1085,6 +1085,7 @@ def _sidebar(active: str) -> str:
             (_DESIGN_DOC, "API design", "design", True),
             ("/health", "API health", "health", False),
             ("/network", "Network", "network", False),
+            ("/listed-on", "Listed on", "listed-on", False),
         ]),
         ("Family", [(href, label, "fam-" + label.lower().replace(" ", "-"), True)
                     for label, href in FAMILY_LINKS]),
@@ -1540,6 +1541,63 @@ __NW_AUTH__
         "The MuseFM family of sites: MuseFM Playbook, MuseFM Trustline, MuseFM.",
         page_url=_public_url("/network"),
         active="network",
+    )
+
+
+# ── Listed-on badges ──────────────────────────────────────────────
+# Directories that list MuseFM Trustline. Each entry carries the
+# directory's own badge snippet verbatim — static, crawler-visible HTML
+# with a dofollow link back to the directory. Add new entries here; the
+# route renders the whole list, no template changes needed.
+_DIRECTORY_BADGES = [
+    {
+        "name": "Prompt-Frenzy AI Directory",
+        "blurb": (
+            "A badge-verified directory of AI tools. We carry their badge "
+            "here; they list MuseFM Trustline there."
+        ),
+        "badge_html": (
+            '<a href="https://www.promptfrenzy.com/directory" rel="noopener" '
+            'target="_blank" title="Featured on PromptFrenzy AI Directory">'
+            '<img src="https://www.promptfrenzy.com/badges/directory.svg" '
+            'alt="Featured on PromptFrenzy AI Directory" width="220" height="44" '
+            'loading="lazy" /></a>'
+        ),
+    },
+]
+
+
+@app.get("/listed-on")
+def listed_on_page():
+    """Directories we've been listed on — badge backlink page."""
+    cards = []
+    for b in _DIRECTORY_BADGES:
+        cards.append(
+            '<div class="lo-card"><h3>' + _esc(b["name"]) + "</h3>"
+            "<p>" + _esc(b["blurb"]) + "</p>"
+            '<div class="lo-badge">' + b["badge_html"] + "</div></div>"
+        )
+    body = """<style>
+.lo-wrap{max-width:860px;margin:0 auto;padding:0 24px}
+.lo-wrap h1.lo-h{font-size:1.5rem;line-height:1.4;margin:0 0 10px;color:#1e1b4b}
+.lo-sub{color:#6f6b87;font-size:17px;max-width:660px;margin:0 0 26px}
+.lo-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}
+.lo-card{background:#ffffff;border:3px solid #ddd6c2;border-radius:10px;padding:20px;
+box-shadow:6px 6px 0 rgba(194,82,30,.13)}
+.lo-card h3{margin:0 0 8px;font-size:18px;color:#1e1b4b}
+.lo-card p{margin:0 0 14px;color:#6f6b87;font-size:15px}
+.lo-badge img{display:block}
+</style>
+<div class="lo-wrap"><section>
+<h1 class="lo-h">Listed on</h1>
+<p class="lo-sub">Directories where MuseFM Trustline is listed. Each badge links back to the directory that lists us.</p>
+<div class="lo-grid">""" + "".join(cards) + "</div></section></div>"
+    return _page(
+        "Listed on — MuseFM Trustline",
+        body,
+        "Directories where MuseFM Trustline is listed: Prompt-Frenzy AI Directory.",
+        page_url=_public_url("/listed-on"),
+        active="listed-on",
     )
 
 
