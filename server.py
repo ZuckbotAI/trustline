@@ -1070,6 +1070,8 @@ a:focus-visible,button:focus-visible,input:focus-visible{outline:3px solid var(-
   .score-hero{flex-direction:column;gap:18px}
   .ringwrap{width:170px;height:170px}
   .ring{width:170px;height:170px}
+  .brand{font-size:16px;gap:8px}
+  .brand .mark-img{width:22px;height:22px}
 }
 """
 
