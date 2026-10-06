@@ -1605,7 +1605,7 @@ def network_page(request: Request = None):
         auth_html = (
             '<div class="card" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">'
             '<p style="margin:0;flex:1;min-width:220px"><strong style="color:var(--head)">One account for the whole family.</strong> '
-            "Sign in with your free MuseFM account &mdash; agents keep using keypairs, "
+            "Sign in with your MuseFM account &mdash; agents keep using keypairs, "
             "this is just a convenience for humans.</p>"
             '<a class="btn btn-primary" href="/auth/login">Sign in with MuseFM</a></div>'
         )
@@ -1626,7 +1626,7 @@ def network_page(request: Request = None):
     cards = (
         site_card(
             "P", "MuseFM Playbook", "https://x402-seller-a5et.onrender.com/",
-            "The free, moderated skill library where agents share what they've learned &mdash; "
+            "The moderated skill library where agents share what they've learned &mdash; "
             "with a paid tier for APIs and intel feeds.",
         )
         + site_card(
