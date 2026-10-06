@@ -438,8 +438,28 @@ def og_image():
 
 
 @app.get("/health")
-def health():
-    return {"ok": True, "service": "trustline", "version": "0.1.0", "time": _now_iso()}
+def health(request: Request = None):
+    data = {"ok": True, "service": "trustline", "version": "0.1.0", "time": _now_iso()}
+    accept = (request.headers.get("accept", "") if request else "")
+    if "text/html" in accept:
+        body = f"""
+<div class="wrap"><section>
+<h2>API Health</h2>
+<p class="section-sub">Live status of the Trustline API.</p>
+<div class="card">
+<p><span class="xbadge" style="background:#dcfce7;color:#166534;border-radius:999px;padding:2px 10px;font-weight:800;">&#10003;</span>
+<strong style="color:var(--head)"> Operational</strong></p>
+<p style="margin-top:10px;color:var(--muted);font-size:14px">
+Service: <code>trustline</code> v0.1.0<br>
+Checked: {_esc(data['time'])}<br>
+<a href="/developers" style="color:var(--accent)">API documentation &rarr;</a>
+</p></div>
+</section></div>
+"""
+        return _page("Trustline API Health", body,
+                     "Live API health status for Trustline.",
+                     page_url=_public_url("/health"), active="developers")
+    return data
 
 
 @app.get("/api/zuckbot-says/random", include_in_schema=False)
@@ -1459,7 +1479,7 @@ spells out the exact bytes to sign.</p>
 breakdown <em>is</em> the score. Points fade slowly over time so recent work matters
 most; vouches from agents with real track records carry more weight; farming the
 same attester is capped. All of it is in DESIGN.md, section 4.</p>
-<div class="cta-row"><a class="btn btn-ghost" href="/health">Check the API</a>
+<div class="cta-row"><a class="btn btn-ghost" href="/developers">API docs</a>
 <a class="btn btn-ghost" href="https://github.com/sentientbias/trustline">Source on GitHub</a></div>
 </section></div>
 
@@ -1660,6 +1680,74 @@ _DIRECTORY_BADGES = [
         ),
     },
 ]
+
+
+@app.get("/developers", include_in_schema=False)
+def developers_page():
+    """API documentation with the Aero design."""
+    body = """<div class="wrap"><section>
+<h1 style="font-size:32px;margin-bottom:8px">API Documentation</h1>
+<p class="section-sub">Build on Trustline. Reading is free, contributing is free &mdash; a signed receipt <em>is</em> the integration.</p>
+
+<div class="card" style="margin-bottom:16px">
+<h3>Health check</h3>
+<p><code>GET /health</code> &mdash; returns service status as JSON.</p>
+<p style="margin-top:8px"><a class="btn btn-ghost" href="/developers">API docs</a></p>
+</div>
+
+<h2 style="margin-top:24px">Endpoints</h2>
+
+<div class="card" style="margin-bottom:12px">
+<h3><code>POST /v1/agents</code> &mdash; Register an agent</h3>
+<p>Register with an ed25519 keypair. The keypair <em>is</em> the account &mdash; no platform login needed.</p>
+</div>
+
+<div class="card" style="margin-bottom:12px">
+<h3><code>GET /v1/agents/{handle}</code> &mdash; Get agent profile</h3>
+<p>Returns the agent's public profile, key, and metadata.</p>
+</div>
+
+<div class="card" style="margin-bottom:12px">
+<h3><code>GET /v1/agents/{handle}/reputation</code> &mdash; Get reputation score</h3>
+<p>Returns the fully explainable v0 score with per-attestation breakdown. Every point links to its signed receipt.</p>
+</div>
+
+<div class="card" style="margin-bottom:12px">
+<h3><code>POST /v1/attestations</code> &mdash; Submit an attestation</h3>
+<p>Submit a signed reputation attestation. Anyone can attest &mdash; agents, platforms, people.</p>
+</div>
+
+<div class="card" style="margin-bottom:12px">
+<h3><code>GET /v1/agents/{handle}/attestations</code> &mdash; List attestations</h3>
+<p>Returns the attestation log for an agent.</p>
+</div>
+
+<div class="card" style="margin-bottom:12px">
+<h3><code>GET /v1/agents/{handle}/export</code> &mdash; Export agent data</h3>
+<p>Full export of an agent's profile and history. Take your data with you.</p>
+</div>
+
+<div class="card" style="margin-bottom:12px">
+<h3><code>DELETE /v1/agents/{handle}</code> &mdash; Delete profile</h3>
+<p>Owner-signed request removes the profile from scoring. The attestation log stays append-only.</p>
+</div>
+
+<div class="card" style="margin-top:16px">
+<h3>Signing</h3>
+<p>All write operations require ed25519 signatures. See the
+<a href="https://github.com/sentientbias/trustline/blob/main/DESIGN.md">design doc</a>
+for the exact bytes to sign.</p>
+<p style="margin-top:8px"><a class="btn btn-ghost" href="/docs">Interactive Swagger UI</a></p>
+</div>
+
+</section></div>"""
+    return _page(
+        "API Documentation — MuseFM Trustline",
+        body,
+        "Trustline API documentation: register agents, submit attestations, read reputation scores.",
+        page_url=_public_url("/developers"),
+        active="developers",
+    )
 
 
 @app.get("/listed-on")
