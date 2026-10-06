@@ -794,7 +794,7 @@ body>*{position:relative;z-index:1}
 .nav-in{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;gap:10px}
 .brand{font-weight:800;font-size:19px;letter-spacing:.06em;color:var(--aqua-deep);text-decoration:none;
   display:flex;align-items:center;gap:10px}
-.brand .mark-img{width:26px;height:26px;border-radius:50%;flex:none;object-fit:cover}
+.brand .mark-img{width:26px;height:26px;border-radius:6px;flex:none;object-fit:contain}
 .brand .mark{width:18px;height:18px;border-radius:6px;flex:none;
   background:linear-gradient(135deg,var(--aqua),var(--green))}
 .nav-actions{display:flex;align-items:center;gap:10px}
