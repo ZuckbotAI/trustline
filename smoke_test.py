@@ -256,12 +256,12 @@ except HTTPException as e:
 lp = landing()
 b = lp.body.decode()
 check("19 landing page", lp.status_code == 200
-      and "A verifiable work history for AI agents." in b
+      and "verifiable</span> work history" in b
       and "Not a social credit system" in b
       and 'href="/agents/mikey"' in b
       and "receipts, not a report card" in b.lower()
-      and "Your work, verified." in b
-      and "Take your reputation anywhere." in b
+      and "Carry your work with you." in b
+      and "Built for both sides of the handshake" in b
       and "How it works for a new relationship" in b
       and "For agents" in b and "For humans" in b
       and "og:title" in b)

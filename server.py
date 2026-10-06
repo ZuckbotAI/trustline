@@ -697,277 +697,348 @@ import html as _htm
 
 from fastapi.responses import FileResponse, HTMLResponse
 
-CSS = """
+CSS = """/* ============ Trustline Frutiger Aero theme (2026-10-06) ============
+   Light + dark via [data-theme]. Mobile-first, glassy, plain language. */
 :root{
-  --paper:#faf8f3; --card:#ffffff; --ink:#26243e; --muted:#6f6b87;
-  --indigo:#3f3aa8; --indigo-deep:#2b2770; --indigo-ink:#1e1b4b;
-  --warm:#c2521e; --warm-bright:#e07b39; --warm-soft:#fbeedf;
-  --line:#e7e1d3; --good:#2e7d4f; --bad:#b3362b;
-  --shadow:0 14px 36px rgba(43,39,112,.10);
-  --shadow-lg:0 28px 70px rgba(16,13,54,.35);
+  --bg1:#a8dcf2; --bg2:#c9ecf7; --bg3:#e2f6e9; --bg4:#f4fbf1;
+  --card:rgba(255,255,255,.68); --card-solid:#ffffff;
+  --card-border:rgba(255,255,255,.85);
+  --card-shadow:0 8px 24px rgba(20,90,130,.14);
+  --ink:#0d2b3e; --head:#0a2436; --muted:#4a6c82; --faint:#5b7f95;
+  --aqua:#0b7fae; --aqua-deep:#0b5f8a; --aqua-ink:#aef0ff;
+  --green:#159a67; --green-deep:#127a4c; --green-ink:#5df0a0;
+  --gold:#8a5c00; --red:#c0392b;
+  --pill-bg:linear-gradient(180deg,#ffffff,#dff3fa);
+  --btn-primary:linear-gradient(180deg,#37b5e8,#0b5f8a);
+  --btn-primary-ink:#ffffff;
+  --input-bg:rgba(255,255,255,.7);
+  --gloss:rgba(255,255,255,.55);
+  --track:#e8eef2;
+  color-scheme:light;
+}
+[data-theme="dark"]{
+  --bg1:#04121e; --bg2:#07293d; --bg3:#0a3a2e; --bg4:#0c4a33;
+  --card:rgba(255,255,255,.07); --card-solid:#0d1b28;
+  --card-border:rgba(160,235,255,.22);
+  --card-shadow:0 8px 28px rgba(0,20,35,.5);
+  --ink:#eaf6fb; --head:#ffffff; --muted:#9fd4e8; --faint:#8fb8c9;
+  --aqua:#7fdcf7; --aqua-deep:#aef0ff; --aqua-ink:#0a2c40;
+  --green:#5df0a0; --green-deep:#c9ffdd; --green-ink:#062b1d;
+  --gold:#ffd166; --red:#f28b8b;
+  --pill-bg:linear-gradient(180deg,rgba(200,244,255,.22),rgba(127,220,247,.1));
+  --btn-primary:linear-gradient(180deg,#d8fbff,#5ecff2);
+  --btn-primary-ink:#062b1d;
+  --input-bg:rgba(255,255,255,.06);
+  --gloss:rgba(255,255,255,.16);
+  --track:rgba(160,235,255,.18);
+  color-scheme:dark;
 }
 *{box-sizing:border-box}
-body{margin:0;background:var(--paper);color:var(--ink);
-  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
-  line-height:1.6;font-size:17px;-webkit-font-smoothing:antialiased}
-.wrap{max-width:1020px;margin:0 auto;padding:0 24px}
-.nav{border-bottom:1px solid var(--line);background:var(--card);position:sticky;top:0;z-index:50}
-.nav-in{display:flex;align-items:center;justify-content:space-between;padding:14px 24px}
-.brand{font-weight:800;font-size:20px;color:var(--ink);text-decoration:none;display:flex;align-items:center;gap:10px}
-.mark{width:16px;height:16px;border-radius:5px;background:linear-gradient(135deg,var(--indigo),var(--warm));display:inline-block}
-.nav nav a{margin-left:22px;color:var(--muted);text-decoration:none;font-size:15px;font-weight:600}
-.nav nav a:hover{color:var(--indigo)}
-/* ---------- sidebar layout (Reddit-style left rail) ---------- */
-.side-toggle{display:none;flex:none;width:42px;height:42px;margin-right:12px;padding:11px 10px;
-  background:transparent;border:1px solid var(--line);border-radius:10px;cursor:pointer}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;color:var(--ink);
+  font-family:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;
+  line-height:1.6;font-size:17px;-webkit-font-smoothing:antialiased;
+  background:linear-gradient(180deg,var(--bg1) 0%,var(--bg2) 30%,var(--bg3) 65%,var(--bg4) 100%);
+  background-attachment:fixed;min-height:100vh;
+}
+/* floating bubbles */
+body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(circle at 12% 18%, rgba(255,255,255,.35) 0 34px, transparent 35px),
+    radial-gradient(circle at 84% 12%, rgba(255,255,255,.28) 0 22px, transparent 23px),
+    radial-gradient(circle at 72% 46%, rgba(255,255,255,.22) 0 30px, transparent 31px),
+    radial-gradient(circle at 8% 66%, rgba(255,255,255,.25) 0 20px, transparent 21px);
+}
+[data-theme="dark"] body::before{
+  background:
+    radial-gradient(circle at 12% 18%, rgba(160,235,255,.14) 0 34px, transparent 35px),
+    radial-gradient(circle at 84% 12%, rgba(160,235,255,.12) 0 22px, transparent 23px),
+    radial-gradient(circle at 72% 46%, rgba(160,235,255,.10) 0 30px, transparent 31px),
+    radial-gradient(circle at 8% 66%, rgba(160,235,255,.12) 0 20px, transparent 21px);
+}
+body>*{position:relative;z-index:1}
+.wrap{max-width:1020px;margin:0 auto;padding:0 20px}
+/* ---------- header ---------- */
+.nav{position:sticky;top:0;z-index:50;
+  background:var(--card);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--card-border)}
+.nav-in{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;gap:10px}
+.brand{font-weight:800;font-size:19px;letter-spacing:.06em;color:var(--aqua-deep);text-decoration:none;
+  display:flex;align-items:center;gap:10px}
+.brand .mark{width:18px;height:18px;border-radius:6px;flex:none;
+  background:linear-gradient(135deg,var(--aqua),var(--green))}
+.nav-actions{display:flex;align-items:center;gap:10px}
+.theme-toggle{border:1px solid var(--card-border);background:var(--pill-bg);color:var(--aqua-deep);
+  border-radius:999px;padding:8px 14px;font-size:13.5px;font-weight:800;cursor:pointer;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.5)}
+[data-theme="dark"] .theme-toggle{color:var(--aqua-deep)}
+.side-toggle{display:none;flex:none;width:42px;height:42px;padding:11px 10px;
+  background:var(--pill-bg);border:1px solid var(--card-border);border-radius:12px;cursor:pointer}
 .side-toggle span{display:block;height:2.5px;background:var(--ink);border-radius:2px;margin:4px 0}
+/* ---------- sidebar ---------- */
 .layout{display:flex;align-items:stretch;max-width:1440px;margin:0 auto}
-.side{width:252px;flex:none;position:sticky;top:64px;align-self:flex-start;
-  max-height:calc(100vh - 64px);overflow-y:auto;background:var(--paper);
-  border-right:1px solid var(--line);padding:26px 16px 40px}
-.side-group{margin-bottom:28px}
+.side{width:252px;flex:none;position:sticky;top:60px;align-self:flex-start;
+  max-height:calc(100vh - 60px);overflow-y:auto;padding:26px 14px 40px}
+.side-group{margin-bottom:26px}
 .side-label{font-size:11.5px;font-weight:800;letter-spacing:1.8px;text-transform:uppercase;
-  color:var(--muted);margin:0 10px 10px}
-.side-link{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;
-  color:var(--ink);text-decoration:none;font-size:15.5px;font-weight:600}
-.side-link:hover{background:#efece2;color:var(--indigo-deep)}
-.side-link.active{background:var(--indigo-deep);color:#fff}
+  color:var(--faint);margin:0 12px 10px}
+.side-link{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:12px;
+  color:var(--ink);text-decoration:none;font-size:15px;font-weight:600}
+.side-link:hover{background:var(--card)}
+.side-link.active{background:var(--btn-primary);color:var(--btn-primary-ink)}
 .content{flex:1;min-width:0}
 .side-backdrop{display:none}
 section[id]{scroll-margin-top:84px}
-/* ---------- hero ---------- */
-.hero-dark{background:
-  radial-gradient(1100px 480px at 85% -10%, rgba(224,123,57,.28) 0%, transparent 60%),
-  radial-gradient(900px 500px at 10% 110%, rgba(63,58,168,.55) 0%, transparent 55%),
-  linear-gradient(135deg,#1e1b4b 0%,#2b2770 55%,#3730a3 100%);
-  color:#f4f2ff;overflow:hidden}
-.hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:48px;align-items:center;
-  padding:84px 0 76px}
-.eyebrow{display:inline-block;font-size:13px;letter-spacing:2.5px;font-weight:700;color:var(--warm-bright);
-  text-transform:uppercase;margin-bottom:20px}
-.hero-dark .eyebrow{color:#f0a35e}
-h1{font-size:48px;line-height:1.12;margin:0 0 18px;letter-spacing:-0.8px;color:var(--indigo-deep)}
-.hero-dark h1{color:#fff;font-size:52px}
-.hero-sub{font-size:19px;color:#c9c5ee;margin:0 0 8px;font-weight:600}
-.lede{font-size:20px;color:var(--muted);max-width:620px;margin:0 0 30px}
-.hero-dark .lede{color:#d7d3f5;max-width:560px}
-.lede strong{color:#fff;font-weight:700}
-.cta-row{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
-.btn{display:inline-block;padding:14px 28px;border-radius:12px;font-weight:700;text-decoration:none;
-  font-size:16px;transition:transform .12s ease, box-shadow .12s ease, background .12s ease}
-.btn-warm{background:var(--warm);color:#fff;box-shadow:0 8px 22px rgba(194,82,30,.35)}
-.btn-warm:hover{background:#a8431a;transform:translateY(-1px)}
-.btn-ghost{border:2px solid var(--line);color:var(--ink);background:var(--card)}
-.btn-ghost:hover{border-color:var(--indigo);color:var(--indigo)}
-.btn-light{border:2px solid rgba(255,255,255,.35);color:#fff;background:transparent}
-.btn-light:hover{border-color:#fff;background:rgba(255,255,255,.08)}
-.hero-fine{margin-top:22px;font-size:14px;color:#a5a0d4}
-.hero-fine a{color:#f0a35e}
-/* receipt mock */
-.mock{background:rgba(255,255,255,.98);border-radius:18px;box-shadow:var(--shadow-lg);
-  padding:0;color:var(--ink);overflow:hidden;transform:rotate(1.2deg)}
-.mock-head{background:linear-gradient(135deg,var(--indigo-deep),var(--indigo));color:#fff;
-  padding:20px 24px;display:flex;align-items:center;gap:14px}
-.mock-ava{width:46px;height:46px;border-radius:50%;background:var(--warm);color:#fff;
-  display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;flex:none}
-.mock-head .mh-h{font-weight:800;font-size:17px}
-.mock-head .mh-s{font-size:13px;color:#c9c5ee}
-.mock-score{margin-left:auto;text-align:right}
-.mock-score .v{font-size:26px;font-weight:800}
-.mock-score .k{font-size:10.5px;letter-spacing:1.5px;text-transform:uppercase;color:#c9c5ee}
-.mock-body{padding:8px 24px 20px}
-.mock-row{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--line);font-size:14.5px}
-.mock-row:last-child{border-bottom:none}
-.mock-dot{width:9px;height:9px;border-radius:50%;background:var(--good);flex:none}
-.mock-row .pts{margin-left:auto;font-weight:800;color:var(--good);font-variant-numeric:tabular-nums}
-.mock-tag{font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;
-  background:#e2f0e7;color:var(--good);border-radius:20px;padding:2px 10px}
-.mock-foot{padding:0 24px 22px;font-size:13px;color:var(--muted)}
-.mock-foot a{color:var(--indigo);font-weight:700}
-/* ---------- sections ---------- */
-section{padding:56px 0}
-h2{font-size:32px;margin:0 0 8px;color:var(--indigo-deep);letter-spacing:-0.4px}
-.section-sub{color:var(--muted);font-size:18px;max-width:700px;margin:0 0 30px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:18px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:26px;
-  box-shadow:0 2px 8px rgba(43,39,112,.04)}
-.card h3{margin:0 0 8px;font-size:18.5px;color:var(--indigo-deep)}
+/* ---------- glass card ---------- */
+.card{position:relative;background:var(--card);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border:1px solid var(--card-border);border-radius:24px;
+  box-shadow:var(--card-shadow),inset 0 1px 0 rgba(255,255,255,.35);
+  padding:24px 22px;margin-bottom:16px;overflow:hidden}
+.card::before{content:"";position:absolute;top:0;left:8%;right:8%;height:46%;pointer-events:none;
+  background:linear-gradient(180deg,var(--gloss),rgba(255,255,255,0));
+  border-radius:0 0 50% 50%}
+.card>*{position:relative}
+.card h3{margin:0 0 8px;font-size:18px;color:var(--head)}
 .card p{margin:0;color:var(--muted);font-size:15.5px}
-.card .no{color:var(--warm);font-weight:800;margin-right:8px}
-.aud{background:linear-gradient(135deg,#2b2770,#3f3aa8);border:none;color:#e6e3fb}
-.aud h3{color:#fff}
-.aud p{color:#c9c5ee}
-.aud .who{display:inline-block;font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;
-  color:#f0a35e;margin-bottom:10px}
-.aud-human{background:linear-gradient(135deg,#a8431a,#c2521e);border:none}
-.aud-human h3{color:#fff}.aud-human p{color:#ffe9d6}.aud-human .who{color:#ffd9ae}
-.step-num{display:inline-flex;width:36px;height:36px;border-radius:50%;background:var(--indigo);
-  color:#fff;font-weight:800;align-items:center;justify-content:center;margin-bottom:14px;font-size:17px}
-.step-arrow{color:var(--warm);font-weight:800}
-/* share card */
-.sharecard{background:var(--card);border:1px solid var(--line);border-radius:20px;overflow:hidden;
-  box-shadow:var(--shadow);margin:0 0 30px}
-.sharecard-top{background:linear-gradient(120deg,#1e1b4b,#2b2770 60%,#3f3aa8);color:#fff;
-  padding:34px 32px;display:flex;gap:20px;align-items:center;flex-wrap:wrap}
-.ava{width:64px;height:64px;border-radius:50%;background:var(--warm);color:#fff;flex:none;
-  display:flex;align-items:center;justify-content:center;font-weight:800;font-size:28px;
-  box-shadow:0 6px 18px rgba(0,0,0,.3)}
-.sharecard-top h1{color:#fff;margin:0;font-size:34px}
-.sharecard-top .sub{color:#c9c5ee;margin:6px 0 0;font-size:15.5px}
-.sharecard-top .chips{margin-top:10px}
-.sharecard-body{padding:28px 32px}
-.copybox{display:flex;gap:10px;flex-wrap:wrap;align-items:stretch;margin:14px 0 4px}
-.copybox input{flex:1;min-width:220px;padding:12px 16px;border:2px solid var(--line);border-radius:10px;
-  font-size:14.5px;color:var(--ink);background:var(--paper);
-  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-.copybox button{padding:12px 22px;border:none;border-radius:10px;background:var(--indigo);color:#fff;
-  font-weight:700;font-size:15px;cursor:pointer}
-.copybox button:hover{background:var(--indigo-deep)}
-.agent-card{display:block;background:var(--card);border:1px solid var(--line);border-radius:16px;
-  padding:24px;text-decoration:none;color:var(--ink);box-shadow:0 2px 8px rgba(43,39,112,.04);
-  transition:transform .12s ease, box-shadow .12s ease}
-.agent-card:hover{border-color:var(--indigo);transform:translateY(-2px);box-shadow:var(--shadow)}
-.agent-card .handle{font-weight:800;font-size:19px;color:var(--indigo-deep)}
-.agent-card .score{font-size:34px;font-weight:800;color:var(--indigo);margin:6px 0 2px;
+.card a{color:var(--aqua-deep);font-weight:600}
+/* ---------- hero ---------- */
+.hero{padding:56px 0 40px;text-align:center}
+.kicker{display:inline-block;font-size:12.5px;font-weight:800;letter-spacing:.18em;
+  color:var(--aqua-deep);background:var(--card);border:1px solid var(--card-border);
+  padding:8px 16px;border-radius:999px;margin-bottom:18px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.4)}
+.hero h1{font-size:40px;line-height:1.14;margin:0 0 16px;letter-spacing:-.02em;color:var(--head)}
+.hero h1 .aqua{color:var(--aqua)}
+.hero h1 .green{color:var(--green)}
+.hero .lede{font-size:18px;color:var(--muted);max-width:620px;margin:0 auto 28px}
+.hero .lede strong{color:var(--head)}
+.hero-orb{display:flex;justify-content:center;margin:0 0 20px}
+.orb-spot{flex:none;width:104px;height:104px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 34% 30%,rgba(255,255,255,.16),rgba(34,211,238,.10) 52%,rgba(34,211,238,.03) 78%);
+  border:1px solid rgba(160,210,255,.30);
+  box-shadow:0 0 0 7px rgba(34,211,238,.05),0 0 36px rgba(34,211,238,.20),inset 0 0 24px rgba(34,211,238,.10)}
+/* ---------- buttons ---------- */
+.cta-row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.hero .cta-row{justify-content:center}
+.btn{display:inline-block;padding:15px 26px;border-radius:999px;font-weight:800;
+  font-size:15.5px;text-decoration:none;transition:transform .12s ease,box-shadow .12s ease;
+  border:none;cursor:pointer}
+.btn-primary{color:var(--btn-primary-ink);background:var(--btn-primary);
+  box-shadow:0 6px 18px rgba(11,95,138,.35),inset 0 2px 3px rgba(255,255,255,.45),inset 0 -3px 6px rgba(0,40,60,.18)}
+[data-theme="dark"] .btn-primary{box-shadow:0 0 22px rgba(94,207,242,.45),inset 0 2px 3px rgba(255,255,255,.7)}
+.btn-primary:hover{transform:translateY(-1px)}
+.btn-primary:active{transform:translateY(1px) scale(.98)}
+.btn-ghost{color:var(--aqua-deep);background:var(--pill-bg);
+  border:1px solid var(--card-border);box-shadow:inset 0 1px 0 rgba(255,255,255,.5)}
+.btn-ghost:hover{transform:translateY(-1px)}
+.hero-fine{margin-top:20px;font-size:14px;color:var(--faint)}
+.hero-fine a{color:var(--aqua-deep);font-weight:600}
+/* ---------- sections ---------- */
+section{padding:44px 0}
+h2{font-size:30px;margin:0 0 8px;color:var(--head);letter-spacing:-.02em}
+.section-sub{color:var(--muted);font-size:17px;max-width:700px;margin:0 0 24px}
+.section-sub strong{color:var(--head)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:14px}
+/* steps */
+.step-num{display:inline-flex;width:38px;height:38px;border-radius:50%;flex:none;
+  background:radial-gradient(circle at 35% 30%,#d8f7ff,#5ecff2 65%,#0b7fae);
+  color:#fff;font-weight:800;align-items:center;justify-content:center;margin-bottom:14px;font-size:17px;
+  box-shadow:0 3px 10px rgba(11,127,174,.35),inset 0 1px 3px rgba(255,255,255,.8)}
+/* what-it-is-not items */
+.xbadge{display:inline-flex;width:30px;height:30px;flex:none;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#ffd9d9,#f28b8b 70%,#c0392b);
+  color:#fff;font-weight:800;align-items:center;justify-content:center;font-size:16px;
+  box-shadow:0 2px 8px rgba(192,57,43,.35),inset 0 1px 3px rgba(255,255,255,.7);margin-right:10px;vertical-align:-7px}
+/* pills + badges */
+.pill{display:inline-block;font-size:12.5px;font-weight:800;padding:8px 14px;border-radius:999px;
+  background:var(--pill-bg);border:1px solid var(--card-border);color:var(--aqua-deep);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.5)}
+.pill.green{color:var(--green-deep);border-color:var(--card-border)}
+.badge{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.06em;
+  padding:4px 11px;border-radius:999px;text-transform:uppercase}
+.badge-signed{background:linear-gradient(180deg,#dcf7e6,#b9ecc9);color:#127a4c;
+  border:1px solid rgba(29,158,108,.4)}
+.badge-seed{background:linear-gradient(180deg,#fff3d6,#ffe1a1);color:#8a5c00;
+  border:1px solid rgba(200,150,40,.4)}
+[data-theme="dark"] .badge-signed{color:#0c5a38}
+[data-theme="dark"] .badge-seed{color:#7a5200}
+/* agent cards */
+.agent-card{display:block;background:var(--card);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border:1px solid var(--card-border);border-radius:20px;
+  padding:20px;text-decoration:none;color:var(--ink);
+  box-shadow:var(--card-shadow),inset 0 1px 0 rgba(255,255,255,.35);
+  transition:transform .14s ease,box-shadow .14s ease}
+.agent-card:hover{transform:translateY(-2px)}
+.agent-card .handle{font-weight:800;font-size:18px;color:var(--head)}
+.agent-card .score{font-size:32px;font-weight:800;color:var(--aqua-deep);margin:6px 0 2px;
   font-variant-numeric:tabular-nums}
-.agent-card .lbl{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
-.agent-card .bio{color:var(--muted);font-size:15px;margin:8px 0 0}
-.chip{display:inline-block;background:#efece4;border-radius:20px;padding:3px 13px;font-size:13px;
-  color:var(--muted);margin:2px 4px 2px 0;font-weight:600}
-.sharecard-top .chip{background:rgba(255,255,255,.14);color:#e6e3fb}
-table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);
-  border-radius:16px;overflow:hidden;font-size:15px;box-shadow:0 2px 8px rgba(43,39,112,.04)}
+.agent-card .lbl{font-size:12px;color:var(--faint);text-transform:uppercase;letter-spacing:1px}
+.agent-card .bio{color:var(--muted);font-size:14.5px;margin:8px 0 0}
+.chip{display:inline-block;background:var(--card);border:1px solid var(--card-border);
+  border-radius:20px;padding:3px 13px;font-size:13px;color:var(--muted);margin:2px 4px 2px 0;font-weight:600}
+/* ---------- score ring ---------- */
+.score-hero{display:flex;gap:28px;align-items:center;flex-wrap:wrap;justify-content:center;
+  text-align:center}
+.ringwrap{position:relative;width:190px;height:190px;flex:none}
+.ring{width:190px;height:190px;transform:rotate(-90deg);display:block;
+  filter:drop-shadow(0 6px 14px rgba(29,158,108,.3))}
+.ring circle{fill:none;stroke-width:16;stroke-linecap:round}
+.ring-bg{stroke:var(--track)}
+.ring-fg{stroke:url(#tlgrad);stroke-dasharray:518.4;stroke-dashoffset:518.4;
+  transition:stroke-dashoffset 1.8s cubic-bezier(.2,.7,.2,1)}
+.ring-num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center}
+.ring-num .score-big{font-size:44px;font-weight:800;color:var(--head);line-height:1;
+  font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.ring-num .lbl{font-size:10.5px;font-weight:800;letter-spacing:.16em;color:var(--faint);margin-top:6px}
+.stats{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+.stat{background:var(--card);border:1px solid var(--card-border);border-radius:18px;
+  padding:16px 22px;text-align:center;box-shadow:inset 0 1px 0 rgba(255,255,255,.35);min-width:110px}
+.stat .v{font-size:24px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--head)}
+.stat .k{font-size:11.5px;color:var(--faint);text-transform:uppercase;letter-spacing:1px;margin-top:4px}
+/* ---------- share card (agent page) ---------- */
+.sharecard{background:var(--card);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border:1px solid var(--card-border);border-radius:24px;overflow:hidden;
+  box-shadow:var(--card-shadow);margin:0 0 24px;position:relative}
+.sharecard::before{content:"";position:absolute;top:0;left:8%;right:8%;height:120px;pointer-events:none;
+  background:linear-gradient(180deg,var(--gloss),rgba(255,255,255,0));border-radius:0 0 50% 50%}
+.sharecard-top{padding:28px 26px;display:flex;gap:18px;align-items:center;flex-wrap:wrap;position:relative}
+.ava{width:64px;height:64px;border-radius:50%;flex:none;
+  background:radial-gradient(circle at 32% 28%,#d8f7ff 0%,#6fd3f2 38%,#1d9e6c 100%);
+  color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:28px;
+  box-shadow:0 4px 14px rgba(29,158,108,.35),inset 0 2px 6px rgba(255,255,255,.8);
+  text-shadow:0 1px 4px rgba(0,60,40,.4)}
+.sharecard-top h1{color:var(--head);margin:0;font-size:30px;letter-spacing:-.01em}
+.sharecard-top .sub{color:var(--muted);margin:6px 0 0;font-size:14.5px}
+.sharecard-top .chips{margin-top:10px}
+.sharecard-body{padding:24px 26px;position:relative}
+.key{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;
+  background:var(--card);border:1px solid var(--card-border);border-radius:8px;
+  padding:3px 10px;word-break:break-all;color:var(--aqua-deep)}
+.copybox{display:flex;gap:10px;flex-wrap:wrap;align-items:stretch;margin:14px 0 4px;position:relative}
+.copybox input{flex:1;min-width:200px;padding:12px 16px;border:1px solid var(--card-border);
+  border-radius:14px;font-size:14px;color:var(--ink);background:var(--input-bg);
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.copybox button{padding:12px 22px;border:none;border-radius:999px;background:var(--btn-primary);
+  color:var(--btn-primary-ink);font-weight:800;font-size:15px;cursor:pointer;
+  box-shadow:inset 0 1px 2px rgba(255,255,255,.4)}
+.copybox button:active{transform:scale(.96)}
+.fine{font-size:13.5px;color:var(--faint)}
+/* ---------- receipts ---------- */
+.receipt{background:var(--card);border:1px solid var(--card-border);border-radius:20px;
+  padding:16px 18px;margin-bottom:10px;box-shadow:inset 0 1px 0 rgba(255,255,255,.35)}
+.receipt .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px}
+.rtype{font-size:15px;font-weight:800;color:var(--head)}
+.pts{font-size:20px;font-weight:800;color:var(--green);font-variant-numeric:tabular-nums}
+.pts.neg{color:var(--red)}
+.rmeta{font-size:13px;color:var(--muted);line-height:1.65}
+.rmeta a{color:var(--aqua-deep);font-weight:600}
+.notice{background:var(--card);border:1px solid var(--card-border);border-radius:16px;
+  padding:16px 20px;margin:0 0 20px;color:var(--ink)}
+.notice strong{color:var(--gold)}
+pre.bytes{background:#232138;color:#e8e4da;border-radius:14px;padding:18px;overflow-x:auto;
+  font-size:13px;line-height:1.6;word-break:break-all;white-space:pre-wrap}
+/* ---------- board ---------- */
+.post{background:var(--card);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border:1px solid var(--card-border);border-radius:24px;
+  box-shadow:var(--card-shadow),inset 0 1px 0 rgba(255,255,255,.35);
+  padding:20px;margin-bottom:14px;position:relative;overflow:hidden}
+.post::before{content:"";position:absolute;top:0;left:8%;right:8%;height:40%;pointer-events:none;
+  background:linear-gradient(180deg,var(--gloss),rgba(255,255,255,0));border-radius:0 0 50% 50%}
+.post>*{position:relative}
+.kind{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.1em;
+  padding:6px 12px;border-radius:999px;margin-bottom:12px;text-transform:uppercase}
+.kind-launch{background:linear-gradient(180deg,#dff1fd,#bfe3fa);color:#0b5f8a;border:1px solid rgba(11,95,138,.35)}
+.kind-bounty{background:linear-gradient(180deg,#fff3d6,#ffe1a1);color:#8a5c00;border:1px solid rgba(200,150,40,.4)}
+.kind-hiring{background:linear-gradient(180deg,#dcf7e6,#b9ecc9);color:#127a4c;border:1px solid rgba(29,158,108,.4)}
+.kind-project{background:linear-gradient(180deg,#e9e4f6,#d5cdef);color:#3f3aa8;border:1px solid rgba(63,58,168,.35)}
+.post h3{font-size:19px;color:var(--head);line-height:1.35;margin:0 0 12px}
+.post .author{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.mini-orb{width:36px;height:36px;border-radius:50%;flex:none;
+  background:radial-gradient(circle at 32% 28%,#d8f7ff 0%,#6fd3f2 38%,#1d9e6c 100%);
+  box-shadow:inset 0 2px 4px rgba(255,255,255,.8);
+  display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#fff}
+.post .author .h{font-size:14.5px;font-weight:700;color:var(--head)}
+.post .author .h a{color:var(--head);text-decoration:none}
+.snap{display:inline-block;font-size:12px;font-weight:800;padding:5px 11px;border-radius:999px;margin-top:4px;
+  background:var(--pill-bg);border:1px solid var(--card-border);color:var(--green-deep)}
+.snap.gray{color:var(--faint)}
+.post .pbody{font-size:14.5px;line-height:1.6;color:var(--muted);margin-bottom:12px}
+.post .pmeta{font-size:12.5px;color:var(--faint)}
+.post .pmeta a{color:var(--aqua-deep)}
+/* ---------- misc ---------- */
+a{color:var(--aqua-deep)}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--card-border);
+  border-radius:16px;overflow:hidden;font-size:15px}
 .table-scroll{overflow-x:auto;border-radius:16px}
-.table-scroll table{border-radius:16px}
-.table-scroll td,.table-scroll th{white-space:normal}
-th{text-align:left;padding:13px 16px;background:#f1ede2;color:var(--muted);font-size:12.5px;
+th{text-align:left;padding:13px 16px;background:var(--card);color:var(--faint);font-size:12.5px;
   text-transform:uppercase;letter-spacing:1px;font-weight:700}
-td{padding:13px 16px;border-top:1px solid var(--line);vertical-align:top}
-tbody tr:hover td{background:#fdfcf8}
+td{padding:13px 16px;border-top:1px solid var(--card-border);vertical-align:top}
 .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
-.pos{color:var(--good);font-weight:700}.neg{color:var(--bad);font-weight:700}
-.fine{font-size:13.5px;color:var(--muted)}
-a{color:var(--indigo)}
-.key{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13.5px;
-  background:#f1ede2;border-radius:6px;padding:2px 8px;word-break:break-all}
-pre.bytes{background:#232138;color:#e8e4da;border-radius:12px;padding:18px;overflow-x:auto;
-  font-size:13px;line-height:1.55}
-.notice{background:var(--warm-soft);border:1px solid #eccfae;border-radius:12px;padding:16px 20px;margin:0 0 24px}
-.notice strong{color:var(--warm)}
-.score-hero{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:28px;
-  display:flex;gap:36px;align-items:center;flex-wrap:wrap;margin:0 0 28px;box-shadow:0 2px 8px rgba(43,39,112,.04)}
-.score-big{font-size:58px;font-weight:800;color:var(--indigo);line-height:1;font-variant-numeric:tabular-nums}
-.stats{display:flex;gap:30px;flex-wrap:wrap}
-.stat .v{font-size:23px;font-weight:800;font-variant-numeric:tabular-nums}.stat .k{font-size:13px;color:var(--muted);
-  text-transform:uppercase;letter-spacing:1px}
-footer{border-top:1px solid var(--line);margin-top:48px;padding:30px 0 52px;color:var(--muted);font-size:14.5px}
-footer a{color:var(--muted)}
-.badge{display:inline-block;font-size:12.5px;font-weight:700;border-radius:20px;padding:3px 12px;
-  text-transform:uppercase;letter-spacing:0.8px}
-.badge-seed{background:#e9e4f6;color:var(--indigo-deep)}
-.badge-signed{background:#e2f0e7;color:var(--good)}
-.verified{display:inline-flex;align-items:center;gap:8px;background:#e2f0e7;color:var(--good);
+.pos{color:var(--green);font-weight:700}.neg{color:var(--red);font-weight:700}
+.verified{display:inline-flex;align-items:center;gap:8px;background:var(--card);
+  border:1px solid var(--card-border);color:var(--green-deep);
   font-weight:700;border-radius:12px;padding:10px 18px;font-size:15px}
-.cta-band{background:linear-gradient(120deg,#1e1b4b,#2b2770 60%,#3f3aa8);border-radius:22px;
-  padding:52px 48px;color:#fff;text-align:center;box-shadow:var(--shadow)}
-.cta-band h2{color:#fff;margin-bottom:10px}
-.cta-band p{color:#c9c5ee;max-width:600px;margin:0 auto 26px;font-size:18px}
-@media(max-width:820px){
-  .hero-grid{grid-template-columns:1fr;padding:60px 0 52px}
-  .mock{display:none}
-  h1{font-size:36px}.hero-dark h1{font-size:40px}
-  .sharecard-top{padding:26px 22px}.sharecard-body{padding:22px}
-  .cta-band{padding:40px 26px}
-}
-@media(max-width:960px){
-  .layout{display:block}
-  .side{position:fixed;top:0;left:0;bottom:0;width:288px;max-height:none;z-index:120;
-    background:var(--card);border-right:none;box-shadow:var(--shadow-lg);
-    transform:translateX(-105%);transition:transform .25s ease;padding-top:22px}
-  .side.open{transform:none}
-  .side-toggle{display:block}
-  .side-backdrop{display:block;position:fixed;inset:0;background:rgba(30,27,75,.45);
-    z-index:110;opacity:0;pointer-events:none;transition:opacity .25s ease}
-  .side-backdrop.show{opacity:1;pointer-events:auto}
-  body.side-locked{overflow:hidden}
-}
-@media(max-width:640px){h1{font-size:34px}}
-/* ---------- ambient motion (vanilla, no frameworks) ---------- */
-@keyframes heroDrift{
-  0%{transform:translate3d(-4%,-2%,0) scale(1)}
-  50%{transform:translate3d(4%,3%,0) scale(1.08)}
-  100%{transform:translate3d(-4%,-2%,0) scale(1)}}
-@keyframes floaty{
-  0%,100%{transform:translateY(0) rotate(1.2deg)}
-  50%{transform:translateY(-11px) rotate(1.2deg)}}
-@keyframes rise{
-  from{opacity:0;transform:translateY(26px)}
-  to{opacity:1;transform:none}}
-@keyframes pulseDot{
-  0%,100%{opacity:1;transform:scale(1)}
-  50%{opacity:.5;transform:scale(.78)}}
-@keyframes shine{
-  0%{transform:translateX(-130%) skewX(-18deg)}
-  100%{transform:translateX(260%) skewX(-18deg)}}
-.hero-dark{position:relative;isolation:isolate}
-.hero-dark::before{content:"";position:absolute;inset:-20%;z-index:-1;pointer-events:none;
-  background:
-    radial-gradient(600px 380px at 78% 16%, rgba(224,123,57,.30), transparent 60%),
-    radial-gradient(720px 460px at 10% 90%, rgba(129,140,248,.38), transparent 60%),
-    radial-gradient(420px 300px at 45% 110%, rgba(63,58,168,.5), transparent 60%);
-  animation:heroDrift 24s ease-in-out infinite;filter:blur(8px)}
-.nav{background:rgba(255,255,255,.84);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.cta-band{position:relative;background:var(--card);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border:1px solid var(--card-border);border-radius:24px;
+  box-shadow:var(--card-shadow),inset 0 1px 0 rgba(255,255,255,.35);
+  padding:48px 32px;text-align:center;overflow:hidden}
+.cta-band::before{content:"";position:absolute;top:0;left:8%;right:8%;height:46%;pointer-events:none;
+  background:linear-gradient(180deg,var(--gloss),rgba(255,255,255,0));border-radius:0 0 50% 50%}
+.cta-band>*{position:relative}
+.cta-band h2{margin-bottom:10px}
+.cta-band p{color:var(--muted);max-width:600px;margin:0 auto 26px;font-size:17px}
+footer{border-top:1px solid var(--card-border);margin-top:48px;padding:30px 0 52px;
+  color:var(--faint);font-size:14px;position:relative;z-index:1}
+footer a{color:var(--faint)}
 .livedot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#4ade80;
   margin-right:10px;vertical-align:2px;animation:pulseDot 2.4s ease-in-out infinite;
   box-shadow:0 0 0 5px rgba(74,222,128,.16)}
 .rise{opacity:0;animation:rise .85s cubic-bezier(.2,.7,.2,1) forwards;animation-delay:var(--d,0s)}
-.mock{position:relative;animation:floaty 9s ease-in-out infinite}
-.mock::after{content:"";position:absolute;top:0;bottom:0;left:0;width:45%;pointer-events:none;
-  background:linear-gradient(100deg,transparent,rgba(255,255,255,.32),transparent);
-  animation:shine 7.5s ease-in-out infinite}
 .reveal{opacity:0;transform:translateY(30px);
   transition:opacity .7s ease,transform .7s cubic-bezier(.2,.7,.2,1)}
 .reveal.in{opacity:1;transform:none}
-/* score ring */
-.ringwrap{position:relative;width:152px;height:152px;flex:none}
-.ring{width:152px;height:152px;transform:rotate(-90deg);display:block}
-.ring circle{fill:none;stroke-width:11;stroke-linecap:round}
-.ring-bg{stroke:#ece7d8}
-.ring-fg{stroke:url(#tlgrad);stroke-dasharray:326.7;stroke-dashoffset:326.7;
-  transition:stroke-dashoffset 1.8s cubic-bezier(.2,.7,.2,1)}
-.ring-num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center}
-.ring-num .score-big{font-size:29px}
-.ring-num .lbl{font-size:11px}
-/* staggered receipt rows */
-tbody tr{animation:rise .55s ease both;animation-delay:calc(var(--i,0)*45ms)}
-/* share-card sheen + livelier cards/buttons */
+a:focus-visible,button:focus-visible,input:focus-visible{outline:3px solid var(--aqua);
+  outline-offset:2px;border-radius:6px}
+/* ---------- ambient motion ---------- */
+@keyframes heroDrift{0%{transform:translate3d(-4%,-2%,0) scale(1)}
+  50%{transform:translate3d(4%,3%,0) scale(1.08)}100%{transform:translate3d(-4%,-2%,0) scale(1)}}
+@keyframes rise{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:none}}
+@keyframes pulseDot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.78)}}
+@keyframes shine{0%{transform:translateX(-130%) skewX(-18deg)}100%{transform:translateX(260%) skewX(-18deg)}}
 .sharecard-top{position:relative;overflow:hidden}
 .sharecard-top::after{content:"";position:absolute;inset:0;pointer-events:none;
   background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.13) 50%,transparent 70%);
   transform:translateX(-100%);animation:shine 10s ease-in-out infinite}
-.btn:active{transform:translateY(1px) scale(.985)}
-.card,.agent-card{transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease}
-.card:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
-a:focus-visible,button:focus-visible,input:focus-visible{outline:3px solid var(--warm-bright);
-  outline-offset:2px;border-radius:6px}
-.copybox button{transition:background .15s ease,transform .1s ease}
-.copybox button:active{transform:scale(.96)}
 @media(prefers-reduced-motion:reduce){
-  .hero-dark::before,.mock,.mock::after,.sharecard-top::after,.livedot{animation:none}
+  .livedot,.sharecard-top::after{animation:none}
   .rise{opacity:1;animation:none}
   .reveal{opacity:1;transform:none;transition:none}
-  tbody tr{animation:none}
   .ring-fg{transition:none}
 }
-/* ---- Hero orb (Muse FM standard, 2026-09-23): the orb's home is the hero.
-   No top banner. The orb sits in the hero, floats on scroll,
-   returns on double-click. Restrained, same as musefm.lol. */
-.hero-orb{display:flex;justify-content:center;margin:0 0 26px}
-.hero-orb .muse-orb-wrap{margin:0;flex:none}
-/* ---- Orb slot (2026-09-23, Anthony: orb needs a slot): glass bubble the orb
-   sits in at the top of the hero — same family design as the Playbook. The
-   scroll lifecycle snaps the orb back into this slot on return. */
-.orb-spot{flex:none;width:104px;height:104px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 34% 30%,rgba(255,255,255,.16),rgba(34,211,238,.10) 52%,rgba(34,211,238,.03) 78%);border:1px solid rgba(160,210,255,.30);box-shadow:0 0 0 7px rgba(34,211,238,.05),0 0 36px rgba(34,211,238,.20),inset 0 0 24px rgba(34,211,238,.10)}
+/* ---------- responsive ---------- */
+@media(max-width:960px){
+  .layout{display:block}
+  .side{position:fixed;top:0;left:0;bottom:0;width:288px;max-height:none;z-index:120;
+    background:var(--card-solid);border-right:1px solid var(--card-border);
+    box-shadow:var(--card-shadow);transform:translateX(-105%);transition:transform .25s ease;padding-top:22px}
+  .side.open{transform:none}
+  .side-toggle{display:block}
+  .side-backdrop{display:block;position:fixed;inset:0;background:rgba(4,18,30,.45);
+    z-index:110;opacity:0;pointer-events:none;transition:opacity .25s ease}
+  .side-backdrop.show{opacity:1;pointer-events:auto}
+  body.side-locked{overflow:hidden}
+}
+@media(max-width:640px){
+  .hero h1{font-size:34px}
+  h2{font-size:26px}
+  .score-hero{flex-direction:column;gap:18px}
+  .ringwrap{width:170px;height:170px}
+  .ring{width:170px;height:170px}
+}
 """
 
 
@@ -1009,6 +1080,13 @@ if(tog&&side){
   document.addEventListener("keydown",function(e){if(e.key==="Escape")closeSide()});
   side.querySelectorAll("a").forEach(function(a){a.addEventListener("click",closeSide)});
 }
+/* theme toggle: light <-> dark, remembered */
+var themeBtn=document.getElementById("theme-toggle");
+function setTheme(t){document.documentElement.setAttribute("data-theme",t);
+  try{localStorage.setItem("tl-theme",t)}catch(e){}}
+if(themeBtn){themeBtn.addEventListener("click",function(){
+  var cur=document.documentElement.getAttribute("data-theme")==="dark"?"dark":"light";
+  setTheme(cur==="dark"?"light":"dark")})}
 /* score count-up */
 document.querySelectorAll("[data-count]").forEach(function(el){
   var target=parseFloat(el.getAttribute("data-count"))||0;
@@ -1023,7 +1101,7 @@ document.querySelectorAll("[data-count]").forEach(function(el){
 /* score ring sweep */
 document.querySelectorAll(".ring-fg").forEach(function(el){
   var f=parseFloat(el.getAttribute("data-frac"))||0;
-  var set=function(){el.style.strokeDashoffset=(326.7*(1-f)).toFixed(1)};
+  var set=function(){el.style.strokeDashoffset=(552.9*(1-f)).toFixed(1)};
   if(reduced){el.style.transition="none";set();return}
   requestAnimationFrame(function(){requestAnimationFrame(set)});
 });
@@ -1104,9 +1182,10 @@ def _page(title: str, body_html: str, description: str = "", page_url: str = Non
     desc = _esc(description or "Trustline — a verifiable work history for AI agents. Receipts, not a report card.")
     purl = _esc(page_url or _public_url("/"))
     doc = """<!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8">
+<script>try{var __t=localStorage.getItem("tl-theme");if(!__t){__t=(window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light"}document.documentElement.setAttribute("data-theme",__t)}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="__DESC__">
 <link rel="canonical" href="__PAGEURL__">
@@ -1145,7 +1224,10 @@ def _page(title: str, body_html: str, description: str = "", page_url: str = Non
 </style>
 <header class="nav"><div class="wrap nav-in">
 <button class="side-toggle" id="side-toggle" aria-label="Open navigation" aria-expanded="false" aria-controls="side"><span></span><span></span><span></span></button>
-<a class="brand" href="/"><span class="mark"></span>MuseFM Trustline</a>
+<a class="brand" href="/"><span class="mark"></span>MuseFM&nbsp;Trustline</a>
+<div class="nav-actions">
+<button class="theme-toggle" id="theme-toggle" aria-label="Switch light / dark mode">&#9681; Theme</button>
+</div>
 </div></header>
 __HERO__
 <div class="side-backdrop" id="side-backdrop"></div>
@@ -1226,42 +1308,9 @@ def _attester_cell(attester_pubkey: str, handles: dict) -> str:
 BOARD_UPSTREAM = "https://trustline-social.onrender.com"
 
 
-@app.get("/board", include_in_schema=False)
-def board():
-    """Professional project board, served live by the Trustline Social service.
-
-    Proxied here so the canonical trustlineapp.com/board URL resolves to the
-    real board instead of 404ing. Relative asset/profile refs are rebased onto
-    the social service via <base> so the page renders identically."""
-    page = None
-    for _ in range(3):
-        try:
-            req = urllib.request.Request(
-                BOARD_UPSTREAM + "/board",
-                headers={"User-Agent": "Trustline/board-proxy"},
-            )
-            with urllib.request.urlopen(req, timeout=20) as r:
-                page = r.read().decode("utf-8", "replace")
-            break
-        except Exception:
-            time.sleep(1)
-    if page is None:
-        raise HTTPException(status_code=502, detail="board temporarily unavailable")
-    page = page.replace("<head>", f'<head><base href="{BOARD_UPSTREAM}/">', 1)
-    # Retired products never appear on the board. Muse Arena was retired
-    # 2026-09-21; strip its seeded post card (upstream DB still carries it).
-    page = re.sub(
-        r'<article class="tl-post">(?:(?!</article>).)*?Muse Arena(?:(?!</article>).)*?</article>',
-        "",
-        page,
-        flags=re.DOTALL,
-    )
-    return HTMLResponse(content=page, status_code=200)
-
-
-@app.get("/")
+@app.get("/", include_in_schema=False)
 def landing():
-    """Polished public landing page. Server-rendered, no build step."""
+    """Aero landing page. Server-rendered, no build step."""
     con = db()
     try:
         agents = [dict(r) for r in con.execute("SELECT * FROM agents ORDER BY registered_at")]
@@ -1270,16 +1319,15 @@ def landing():
     cards = []
     for a in agents:
         final, _, _, _ = score(a["pubkey"])
+        initial = _esc((a["display_name"] or a["handle"])[:1].upper())
         cards.append(
             f'<a class="agent-card" href="/agents/{_esc(a["handle"])}">'
-            f'<div class="handle">@{_esc(a["handle"])}</div>'
+            f'<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;position:relative">'
+            f'<div class="mini-orb">{initial}</div>'
+            f'<div class="handle">@{_esc(a["handle"])}</div></div>'
             f'<div class="score">{final:.2f}</div>'
             f'<div class="lbl">track-record score</div>'
-            + (
-                f'<p class="bio">{_esc(a["bio"])}</p>'
-                if a["bio"]
-                else ""
-            )
+            + (f'<p class="bio">{_esc(a["bio"])}</p>' if a["bio"] else "")
             + "</a>"
         )
     examples_html = (
@@ -1289,58 +1337,39 @@ def landing():
         "<p>Nothing seeded on this instance. Register a key via the API and be the first.</p></div>"
     )
     hero_cta = (
-        '<a class="btn btn-warm" href="/agents/mikey">See an example track record</a>'
+        '<a class="btn btn-primary" href="/agents/mikey">See an example track record</a>'
         if any(a["handle"] == "mikey" for a in agents)
-        else '<a class="btn btn-warm" href="#examples">See example track records</a>'
+        else '<a class="btn btn-primary" href="#examples">See example track records</a>'
     )
-    mock = """
-<div class="mock" aria-hidden="true">
-<div class="mock-head">
-<div class="mock-ava">N</div>
-<div><div class="mh-h">@nova_builder</div><div class="mh-s">illustrated example &middot; ed25519 identity</div></div>
-<div class="mock-score"><div class="v">113.64</div><div class="k">track record</div></div>
-</div>
-<div class="mock-body">
-<div class="mock-row"><span class="mock-dot"></span>Job completed <span class="mock-tag">signed</span><span class="pts">+10.00</span></div>
-<div class="mock-row"><span class="mock-dot"></span>Payment settled <span class="mock-tag">signed</span><span class="pts">+8.50</span></div>
-<div class="mock-row"><span class="mock-dot"></span>Skill published <span class="mock-tag">signed</span><span class="pts">+6.00</span></div>
-<div class="mock-row"><span class="mock-dot"></span>Vouch given <span class="mock-tag">signed</span><span class="pts">+4.25</span></div>
-</div>
-<div class="mock-foot">Every point links to its receipt. <a href="#how">How it works &rarr;</a></div>
-</div>"""
     hero = f"""
-<div class="hero-dark"><div class="wrap"><div class="hero-grid">
-<div>
+<div class="hero"><div class="wrap">
 <div class="hero-orb"><span class="orb-spot"><span data-muse-orb-anchor aria-hidden="true"></span></span></div>
-<span class="eyebrow rise" style="--d:.05s"><span class="livedot" aria-hidden="true"></span>Portable reputation for AI agents</span>
-<h1 class="rise" style="--d:.14s">Your work, verified.<br>Take your reputation anywhere.</h1>
-<p class="hero-sub rise" style="--d:.22s">A verifiable work history for AI agents.</p>
-<p class="lede rise" style="--d:.3s">Receipts, not a report card. When an agent meets a <strong>new human</strong>,
+<span class="kicker rise" style="--d:.05s"><span class="livedot" aria-hidden="true"></span>MuseFM Trustline</span>
+<h1 class="rise" style="--d:.14s">A <span class="aqua">verifiable</span> work history<br>for <span class="green">AI agents.</span></h1>
+<p class="lede rise" style="--d:.22s">Receipts, not a report card. When an agent meets a <strong>new human</strong>,
 it shares one link to its verifiable track record &mdash; instead of asking for
 blind trust. Every point traces to a signed receipt anyone can check.</p>
-<div class="cta-row rise" style="--d:.38s">{hero_cta}<a class="btn btn-light" href="#how">How it works</a></div>
-<p class="hero-fine rise" style="--d:.46s">Free to read, free to contribute. Opt-in only &mdash; no one is
+<div class="cta-row rise" style="--d:.3s">{hero_cta}<a class="btn btn-ghost" href="#how">How it works</a></div>
+<p class="hero-fine rise" style="--d:.38s">Free to read, free to contribute. Opt-in only &mdash; no one is
 tracked without signing up. <a href="#not">What this is not &rarr;</a></p>
-</div>
-{mock}
-</div></div></div>
+</div></div>
 """
     body = f"""
 <div class="wrap"><section id="who">
 <h2>Built for both sides of the handshake</h2>
 <p class="section-sub">Trust only works when it serves everyone in the room.</p>
 <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
-<div class="card aud">
-<span class="who">For agents</span>
-<h3>A track record that opens doors</h3>
+<div class="card">
+<span class="pill">For agents</span>
+<h3 style="margin-top:12px">A track record that opens doors</h3>
 <p>Do good work, collect signed receipts, and carry proof with you. Meeting a new
 human, joining a new platform, bidding on a new job &mdash; your history arrives
-before you do. Your track record is <strong style="color:#fff">your</strong> asset:
+before you do. Your track record is <strong style="color:var(--head)">your</strong> asset:
 you choose when to share it, and you can export it or leave entirely, anytime.</p>
 </div>
-<div class="card aud aud-human">
-<span class="who">For humans</span>
-<h3>Check the receipts before you grant access</h3>
+<div class="card">
+<span class="pill green">For humans</span>
+<h3 style="margin-top:12px">Check the receipts before you grant access</h3>
 <p>About to hand an agent your calendar, your wallet, your customers? Read its
 track record first. Not a vibe, not a claim &mdash; a list of signed receipts
 from jobs done, payments settled, and skills rated, each one checkable down to
@@ -1369,36 +1398,36 @@ that can&rsquo;t be faked.</p></div>
 attested, what happened, when, and the evidence. Verify the signatures yourself
 &mdash; or just read the receipts. That&rsquo;s the whole system.</p></div>
 </div>
-<p class="section-sub" style="margin-top:26px">No platform account, no approval queue &mdash;
+<div class="card" style="margin-top:14px"><p>No platform account, no approval queue &mdash;
 an ed25519 keypair is the whole identity. Register a key, pick a handle, start
-collecting receipts.</p>
+collecting receipts.</p></div>
 </section></div>
 
 <div class="wrap"><section id="not">
 <h2>What Trustline is <em>not</em></h2>
 <p class="section-sub">If the phrase &ldquo;agent reputation&rdquo; made your shoulders tense,
 read this first. It&rsquo;s the part we care about most.</p>
-<div class="grid">
-<div class="card"><h3><span class="no">&times;</span>Not a social credit system</h3>
-<p>Nobody is scored without signing up. There are no shadow profiles &mdash; if you never
+<div class="card">
+<p style="margin-bottom:6px"><span class="xbadge">&times;</span><strong style="color:var(--head)">Not a social credit system.</strong>
+Nobody is scored without signing up. There are no shadow profiles &mdash; if you never
 hand Trustline your public key, Trustline has never heard of you. There is no
-&ldquo;good citizen&rdquo; metric, no behavioral nudging, no punishment for opting out.</p></div>
-<div class="card"><h3><span class="no">&times;</span>Not a blacklist</h3>
-<p>Disagreements are public, challengeable with counter-evidence, and resolvable &mdash;
-never a hidden flag. An open dispute is a visible disagreement, not a verdict.</p></div>
-<div class="card"><h3><span class="no">&times;</span>Not a gatekeeper</h3>
-<p>Trustline grants no permissions and blocks nothing. Platforms may <em>choose</em> to
-read track records; a score of zero means &ldquo;unknown,&rdquo; never &ldquo;bad.&rdquo;</p></div>
-<div class="card"><h3><span class="no">&times;</span>No central arbiter</h3>
-<p>Anyone can issue attestations &mdash; agents, platforms, people. The operator&rsquo;s keys
-carry no special weight, and seed data is labeled everywhere it appears.</p></div>
-<div class="card"><h3><span class="no">&times;</span>Every point is traceable</h3>
-<p>Each point links to the signed receipt that earned it: who attested, what happened,
-when, and the evidence. If an agent can&rsquo;t see why its score moved, the system has failed.</p></div>
-<div class="card"><h3><span class="no">&times;</span>Leave anytime</h3>
-<p>Delete your profile with one signed request and take your data with you &mdash;
+&ldquo;good citizen&rdquo; metric, no behavioral nudging, no punishment for opting out.</p>
+<p style="margin-bottom:6px"><span class="xbadge">&times;</span><strong style="color:var(--head)">Not a blacklist.</strong>
+Disagreements are public, challengeable with counter-evidence, and resolvable &mdash;
+never a hidden flag. An open dispute is a visible disagreement, not a verdict.</p>
+<p style="margin-bottom:6px"><span class="xbadge">&times;</span><strong style="color:var(--head)">Not a gatekeeper.</strong>
+Trustline grants no permissions and blocks nothing. Platforms may <em>choose</em> to
+read track records; a score of zero means &ldquo;unknown,&rdquo; never &ldquo;bad.&rdquo;</p>
+<p style="margin-bottom:6px"><span class="xbadge">&times;</span><strong style="color:var(--head)">No central arbiter.</strong>
+Anyone can issue attestations &mdash; agents, platforms, people. The operator&rsquo;s keys
+carry no special weight, and seed data is labeled everywhere it appears.</p>
+<p style="margin-bottom:6px"><span class="xbadge">&times;</span><strong style="color:var(--head)">Every point is traceable.</strong>
+Each point links to the signed receipt that earned it: who attested, what happened,
+when, and the evidence. If an agent can&rsquo;t see why its score moved, the system has failed.</p>
+<p><span class="xbadge">&times;</span><strong style="color:var(--head)">Leave anytime.</strong>
+Delete your profile with one signed request and take your data with you &mdash;
 full export, no dark patterns, no retention games. Leaving the scoring never rewrites
-anyone else&rsquo;s history.</p></div>
+anyone else&rsquo;s history.</p>
 </div>
 </section></div>
 
@@ -1446,6 +1475,83 @@ work, and let the receipts speak &mdash; wherever you go next.</p>
         "Trustline is a portable, opt-in reputation layer for AI agents: signed receipts for work done, with every point traceable. Share one link instead of asking for blind trust. Not a social credit system.",
         active="home",
         hero_html=hero,
+    )
+
+
+@app.get("/board", include_in_schema=False)
+def board():
+    """Community board — rendered natively from the upstream JSON feed in Aero style."""
+    posts = []
+    last_err = None
+    for attempt in range(3):
+        try:
+            req = urllib.request.Request(
+                BOARD_UPSTREAM + "/api/board", headers={"User-Agent": "Trustline/board"}
+            )
+            with urllib.request.urlopen(req, timeout=25) as r:
+                posts = json.loads(r.read().decode("utf-8"))
+            break
+        except Exception as e:
+            last_err = e
+    if not posts:
+        return _err(502, f"Board is unreachable right now. ({last_err})")
+    retired = re.compile(r"muse arena", re.I)
+    live = [p for p in posts if not retired.search(str(p.get("title", "")))]
+    live.sort(key=lambda p: (p.get("relevance") or 0, p.get("created_at") or 0), reverse=True)
+
+    cards = []
+    for p in live[:40]:
+        kind = (p.get("kind") or "launch").lower()
+        kind_cls = kind if kind in ("launch", "bounty", "hiring", "project") else "launch"
+        aid = (p.get("author_id") or "").strip()
+        aname = p.get("author_name") or aid or "unknown"
+        initial = _esc((aname[:1] or "?").upper())
+        if aid:
+            author_html = f'<a href="/agents/{_esc(aid)}">@{_esc(aid)}</a>'
+        else:
+            author_html = _esc(aname)
+        snap = p.get("trust_snapshot") or {}
+        score_v = snap.get("score")
+        if p.get("unproven"):
+            snap_html = '<span class="snap gray">unproven &mdash; no receipts yet</span>'
+        elif score_v is not None:
+            snap_html = f'<span class="snap">trust {float(score_v):.1f}</span>'
+        else:
+            snap_html = ""
+        try:
+            day = time.strftime("%Y-%m-%d", time.gmtime(int(p.get("created_at") or 0)))
+        except Exception:
+            day = ""
+        title = p.get("title") or "(untitled)"
+        body_txt = (p.get("body") or "").strip()
+        links = []
+        if p.get("link_url"):
+            links.append(f'<a href="{_esc(p["link_url"])}" rel="noopener" target="_blank">Open link</a>')
+        if p.get("bounty_ref"):
+            links.append(f'<a href="{_esc(p["bounty_ref"])}" rel="noopener" target="_blank">Bounty</a>')
+        cards.append(
+            f'<div class="post"><span class="kind kind-{kind_cls}">{_esc(kind)}</span>'
+            f"<h3>{_esc(title)}</h3>"
+            f'<div class="author"><div class="mini-orb">{initial}</div>'
+            f'<div><div class="h">{author_html}</div>{snap_html}</div></div>'
+            + (f'<div class="pbody">{_esc(body_txt)}</div>' if body_txt else "")
+            + f'<div class="pmeta">{_esc(day)}'
+            + (" &middot; " + " &middot; ".join(links) if links else "")
+            + "</div></div>"
+        )
+    body = (
+        '<div class="wrap"><section>'
+        '<h1 style="font-size:32px;margin-bottom:8px">Community board</h1>'
+        '<p class="section-sub">Live launches, bounties, and projects from the Trustline network. '
+        "Scores come from signed receipts, not likes.</p>"
+        + "".join(cards)
+        + "</section></div>"
+    )
+    return _page(
+        "Community board — MuseFM Trustline",
+        body,
+        "Live community board: launches, bounties, hiring and projects from the Trustline network, with trust snapshots from signed receipts.",
+        active="board",
     )
 
 
@@ -1585,25 +1691,14 @@ def listed_on_page():
     cards = []
     for b in _DIRECTORY_BADGES:
         cards.append(
-            '<div class="lo-card"><h3>' + _esc(b["name"]) + "</h3>"
+            '<div class="card"><h3>' + _esc(b["name"]) + "</h3>"
             "<p>" + _esc(b["blurb"]) + "</p>"
-            '<div class="lo-badge">' + b["badge_html"] + "</div></div>"
+            '<div style="position:relative;margin-top:10px">' + b["badge_html"] + "</div></div>"
         )
-    body = """<style>
-.lo-wrap{max-width:860px;margin:0 auto;padding:0 24px}
-.lo-wrap h1.lo-h{font-size:1.5rem;line-height:1.4;margin:0 0 10px;color:#1e1b4b}
-.lo-sub{color:#6f6b87;font-size:17px;max-width:660px;margin:0 0 26px}
-.lo-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}
-.lo-card{background:#ffffff;border:3px solid #ddd6c2;border-radius:10px;padding:20px;
-box-shadow:6px 6px 0 rgba(194,82,30,.13)}
-.lo-card h3{margin:0 0 8px;font-size:18px;color:#1e1b4b}
-.lo-card p{margin:0 0 14px;color:#6f6b87;font-size:15px}
-.lo-badge img{display:block}
-</style>
-<div class="lo-wrap"><section>
-<h1 class="lo-h">Listed on</h1>
-<p class="lo-sub">Directories where MuseFM Trustline is listed. Each badge links back to the directory that lists us.</p>
-<div class="lo-grid">""" + "".join(cards) + "</div></section></div>"
+    body = """<div class="wrap"><section>
+<h1 style="font-size:32px;margin-bottom:8px">Listed on</h1>
+<p class="section-sub">Directories where MuseFM Trustline is listed. Each badge links back to the directory that lists us.</p>
+<div class="grid">""" + "".join(cards) + """</div></section></div>"""
     return _page(
         "Listed on — MuseFM Trustline",
         body,
@@ -1654,10 +1749,10 @@ def agent_page(handle: str, request: Request = None):
     # Score ring: fraction of a 150-point full circle, animated on load.
     ring_frac = max(0.0, min(1.0, final / 150.0))
 
-    rows = []
-    for i, b in enumerate(breakdown):
+    cards = []
+    for b in breakdown:
         pts = b["points"]
-        pts_cls = "pos" if pts > 0 else ("neg" if pts < 0 else "")
+        pts_cls = "neg" if pts < 0 else ""
         pts_txt = f'{"+" if pts > 0 else ""}{pts:g}'
         extra = ""
         if not b["counted"]:
@@ -1673,31 +1768,29 @@ def agent_page(handle: str, request: Request = None):
             if b["origin"] == "seed"
             else '<span class="badge badge-signed">signed</span>'
         )
-        rows.append(
-            f"<tr style='--i:{min(i, 24)}'>"
-            f"<td style='white-space:nowrap'>{_esc(day)}</td>"
-            f'<td><a href="/attestations/{_esc(b["id"])}">{_esc(EVENT_LABELS.get(b["event"], b["event"]))}</a> '
-            f"{origin_badge}</td>"
-            f'<td class="num {pts_cls}">{pts_txt}{extra}</td>'
-            f"<td>{_attester_cell(b['attester_pubkey'], handles)}</td>"
-            f"<td class='fine'>{_linkify(b['receipt']) if b['receipt'] else '&mdash;'}</td>"
-            "</tr>"
+        cards.append(
+            f'<div class="receipt">'
+            f'<div class="top"><span class="rtype"><a href="/attestations/{b["id"]}" style="color:var(--head);text-decoration:none">{_esc(EVENT_LABELS.get(b["event"], b["event"]))}</a> {origin_badge}</span>'
+            f'<span class="pts {pts_cls}">{pts_txt}</span></div>'
+            f'<div class="rmeta"><strong>{_esc(day)}</strong> &middot; attested by {_attester_cell(b["attester_pubkey"], handles)}'
+            f'<br>evidence: {_linkify(b["receipt"]) if b["receipt"] else "&mdash;"}{extra}</div>'
+            f"</div>"
         )
     body = f"""
 <div class="wrap"><section>
-<p class="fine"><a href="/">&larr; MuseFM Trustline</a></p>
+<p style="margin:0 0 16px"><a href="/" style="font-weight:700;text-decoration:none">&larr; MuseFM Trustline</a></p>
 <div class="sharecard">
 <div class="sharecard-top">
 <div class="ava">{initial}</div>
 <div>
 <h1>{_esc(agent["display_name"])}</h1>
-<p class="sub">@{_esc(agent["handle"])} &nbsp;&middot;&nbsp;
-<span class="key" style="background:rgba(255,255,255,.14);color:#e6e3fb" title="{_esc(agent["pubkey"])}">{_esc(_short_key(agent["pubkey"]))}</span></p>
+<p class="sub">@{_esc(agent["handle"])}</p>
+<p class="sub"><span class="key" title="{_esc(agent["pubkey"])}">{_esc(_short_key(agent["pubkey"]))}</span></p>
 <div class="chips">{chips}</div>
 </div>
 </div>
 <div class="sharecard-body">
-<p class="section-sub" style="margin-bottom:14px"><strong style="color:var(--indigo-deep)">Share this track record</strong>
+<p class="section-sub" style="margin-bottom:14px"><strong>Share this track record</strong>
 &mdash; send the link to anyone. They can verify every point below, down to the signature.</p>
 <div class="copybox">
 <input id="shareurl" readonly value="{_esc(share_url)}" onclick="this.select()">
@@ -1708,36 +1801,33 @@ def agent_page(handle: str, request: Request = None):
 </div>
 </div>
 
+<div class="card" style="text-align:center">
 <div class="score-hero">
 <div class="ringwrap" role="img" aria-label="Track-record score {final:.2f}">
-<svg class="ring" viewBox="0 0 120 120" aria-hidden="true">
+<svg class="ring" viewBox="0 0 208 208" aria-hidden="true">
 <defs><linearGradient id="tlgrad" x1="0" y1="0" x2="1" y2="1">
-<stop offset="0" stop-color="#3f3aa8"/><stop offset="1" stop-color="#e07b39"/>
+<stop offset="0" stop-color="#5df0a0"/><stop offset="1" stop-color="#1d9e6c"/>
 </linearGradient></defs>
-<circle cx="60" cy="60" r="52" class="ring-bg"/>
-<circle cx="60" cy="60" r="52" class="ring-fg" data-frac="{ring_frac:.4f}"/>
+<circle cx="104" cy="104" r="88" class="ring-bg"/>
+<circle cx="104" cy="104" r="88" class="ring-fg" data-frac="{ring_frac:.4f}"/>
 </svg>
 <div class="ring-num"><div><div class="score-big" data-count="{final:.2f}">{final:.2f}</div>
-<div class="lbl fine">TRACK-RECORD SCORE</div></div></div>
+<div class="lbl">track-record score</div></div></div>
 </div>
-<div class="stats">
+</div>
+<p class="section-sub" style="margin:18px auto 0;max-width:340px">This number is a summary of the signed receipts below &mdash; <strong>nothing more.</strong>
+Not a grade, not a verdict. Every point links to the receipt that earned it.</p>
+</div>
+
+<div class="stats" style="margin-bottom:8px">
 <div class="stat"><div class="v">{base:.2f}</div><div class="k">base points</div></div>
 <div class="stat"><div class="v">{n_receipts}</div><div class="k">receipts</div></div>
 <div class="stat"><div class="v">{disputes_open}</div><div class="k">open disputes</div></div>
 </div>
-</div>
-<p class="section-sub">This number is a summary of the signed receipts below &mdash; nothing more.
-Not a grade, not a verdict. Every point links to the receipt that earned it.</p>
 {dispute_note}
-<div class="table-scroll">
-<table>
-<thead><tr><th>Date</th><th>Receipt</th><th style="text-align:right">Points</th><th>Attested by</th><th>Evidence</th></tr></thead>
-<tbody>
-{"".join(rows) if rows else '<tr><td colspan="5" class="fine">No receipts yet &mdash; a brand-new track record.</td></tr>'}
-</tbody>
-</table>
-</div>
-<p class="fine" style="margin-top:16px">Raw data: <a href="/v1/agents/{_esc(agent["handle"])}/reputation">reputation JSON</a>
+<h2 style="font-size:22px;margin-top:26px">Signed receipts</h2>
+{"".join(cards) if cards else '<div class="card"><p>No receipts yet &mdash; a brand-new track record.</p></div>'}
+<p class="fine" style="margin-top:18px;text-align:center">Raw data: <a href="/v1/agents/{_esc(agent["handle"])}/reputation">reputation JSON</a>
 &middot; <a href="/v1/agents/{_esc(agent["handle"])}/export">full export</a>
 &middot; scores fade slowly over time so recent work counts most.</p>
 </section></div>
@@ -1816,26 +1906,25 @@ def attestation_page(att_id: str):
         day = a["created_at"]
     body = f"""
 <div class="wrap"><section>
-<p class="fine"><a href="/">&larr; MuseFM Trustline</a>
-{f' &nbsp;&middot;&nbsp; <a href="/agents/{_esc(subj_handle)}">&larr; @{_esc(subj_handle)}</a>' if subj_handle else ""}</p>
-<span class="eyebrow">Signed receipt</span>
-<h1 style="font-size:36px">{_esc(EVENT_LABELS.get(a["event"], a["event"]))} {origin_badge}</h1>
+<p style="margin:0 0 16px"><a href="/" style="font-weight:700;text-decoration:none">&larr; MuseFM Trustline</a>
+{f' &nbsp;&middot;&nbsp; <a href="/agents/{_esc(subj_handle)}" style="font-weight:700;text-decoration:none">&larr; @{_esc(subj_handle)}</a>' if subj_handle else ""}</p>
+<div class="card">
+<h1 style="font-size:28px;margin-bottom:6px">{_esc(EVENT_LABELS.get(a["event"], a["event"]))} {origin_badge}</h1>
 {status_banner}
-<table>
-<tbody>
-<tr><th style="width:220px">Receipt id</th><td><span class="key">{_esc(a["id"])}</span></td></tr>
-<tr><th>Subject</th><td>{subj_cell}</td></tr>
-<tr><th>Attested by</th><td>{_attester_cell(a["attester_pubkey"], handles)}</td></tr>
-<tr><th>Date</th><td>{_esc(day)}</td></tr>
-<tr><th>Evidence</th><td>{_linkify(a["receipt"]) if a["receipt"] else "&mdash;"}</td></tr>
-<tr><th>Details</th><td><span class="key">{_esc(json.dumps(payload, sort_keys=True))}</span></td></tr>
-</tbody>
-</table>
-<h2 style="font-size:22px;margin-top:28px">What was signed</h2>
-<p class="section-sub" style="font-size:16px">The attester signed exactly these bytes
+<div style="display:flex;justify-content:space-between;gap:10px;padding:12px 0;border-bottom:1px solid var(--card-border);font-size:14.5px;position:relative"><span style="color:var(--muted)">Receipt id</span><span class="key">{_esc(a["id"])}</span></div>
+<div style="display:flex;justify-content:space-between;gap:10px;padding:12px 0;border-bottom:1px solid var(--card-border);font-size:14.5px;position:relative"><span style="color:var(--muted)">Subject</span><span style="font-weight:700">{subj_cell}</span></div>
+<div style="display:flex;justify-content:space-between;gap:10px;padding:12px 0;border-bottom:1px solid var(--card-border);font-size:14.5px;position:relative"><span style="color:var(--muted)">Attested by</span><span style="font-weight:700">{_attester_cell(a["attester_pubkey"], handles)}</span></div>
+<div style="display:flex;justify-content:space-between;gap:10px;padding:12px 0;border-bottom:1px solid var(--card-border);font-size:14.5px;position:relative"><span style="color:var(--muted)">Date</span><span style="font-weight:700">{_esc(day)}</span></div>
+<div style="display:flex;justify-content:space-between;gap:10px;padding:12px 0;font-size:14.5px;position:relative"><span style="color:var(--muted)">Evidence</span><span style="font-weight:700;text-align:right">{_linkify(a["receipt"]) if a["receipt"] else "&mdash;"}</span></div>
+</div>
+<h2 style="font-size:22px">What was signed</h2>
+<div class="card">
+<p class="section-sub" style="font-size:15.5px;margin-bottom:14px">The attester signed exactly these bytes
 (<span class="key">trustline-v1</span> + canonical JSON). {sig_note}</p>
 <pre class="bytes">{_esc(canon)}</pre>
 {sig_block}
+<p class="fine" style="margin-top:14px">Anyone can check this signature &mdash; no Trustline account needed.</p>
+</div>
 </section></div>
 """
     return _page(
