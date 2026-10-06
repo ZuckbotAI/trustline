@@ -1174,7 +1174,7 @@ FAMILY_LINKS = [
     ("MuseFM Trustline", "https://trustlineapp.com"),
 ]
 
-_DESIGN_DOC = "https://github.com/sentientbias/trustline/blob/main/DESIGN.md"
+_DESIGN_DOC = "/developers"
 
 
 def _sidebar(active: str) -> str:
