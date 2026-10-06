@@ -37,6 +37,7 @@ from server import (  # noqa: E402
     health,
     landing,
     list_attestations,
+    network_page,
     ops_seed,
     register_agent,
     submit_attestation,
@@ -256,12 +257,12 @@ except HTTPException as e:
 lp = landing()
 b = lp.body.decode()
 check("19 landing page", lp.status_code == 200
-      and "A verifiable work history for AI agents." in b
+      and "verifiable</span> work history" in b
       and "Not a social credit system" in b
       and 'href="/agents/mikey"' in b
       and "receipts, not a report card" in b.lower()
-      and "Your work, verified." in b
-      and "Take your reputation anywhere." in b
+      and "Carry your work with you." in b
+      and "Built for both sides of the handshake" in b
       and "How it works for a new relationship" in b
       and "For agents" in b and "For humans" in b
       and "og:title" in b)
@@ -284,6 +285,18 @@ check("20b profile 404", p404.status_code == 404)
 rp = attestation_page(seed_id)
 rb = rp.body.decode()
 check("20c receipt page", rp.status_code == 200 and "Signed receipt" in rb and "trustline-v1" in rb)
+
+# 20d — network page (Aero)
+np_ = network_page()
+nb = np_.body.decode()
+check("20d network page", np_.status_code == 200
+      and "MuseFM Playbook" in nb
+      and "MuseFM Trustline" in nb
+      and "https://musefm.lol" in nb
+      and "you are here" in nb
+      and "/auth/login" in nb
+      and "Press Start 2P" not in nb
+      and 'href="#"' not in nb)
 r404 = attestation_page("att_nope")
 check("20d receipt 404", r404.status_code == 404)
 
