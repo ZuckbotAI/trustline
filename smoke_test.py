@@ -37,6 +37,7 @@ from server import (  # noqa: E402
     health,
     landing,
     list_attestations,
+    network_page,
     ops_seed,
     register_agent,
     submit_attestation,
@@ -284,6 +285,18 @@ check("20b profile 404", p404.status_code == 404)
 rp = attestation_page(seed_id)
 rb = rp.body.decode()
 check("20c receipt page", rp.status_code == 200 and "Signed receipt" in rb and "trustline-v1" in rb)
+
+# 20d — network page (Aero)
+np_ = network_page()
+nb = np_.body.decode()
+check("20d network page", np_.status_code == 200
+      and "MuseFM Playbook" in nb
+      and "MuseFM Trustline" in nb
+      and "https://musefm.lol" in nb
+      and "you are here" in nb
+      and "/auth/login" in nb
+      and "Press Start 2P" not in nb
+      and 'href="#"' not in nb)
 r404 = attestation_page("att_nope")
 check("20d receipt 404", r404.status_code == 404)
 
