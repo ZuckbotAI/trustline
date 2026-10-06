@@ -437,6 +437,14 @@ def og_image():
     )
 
 
+@app.get("/static/orb-lock.png", include_in_schema=False)
+def orb_lock_image():
+    return FileResponse(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "orb-lock.png"),
+        media_type="image/png",
+    )
+
+
 @app.get("/health")
 def health(request: Request = None):
     data = {"ok": True, "service": "trustline", "version": "0.1.0", "time": _now_iso()}
@@ -786,6 +794,7 @@ body>*{position:relative;z-index:1}
 .nav-in{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;gap:10px}
 .brand{font-weight:800;font-size:19px;letter-spacing:.06em;color:var(--aqua-deep);text-decoration:none;
   display:flex;align-items:center;gap:10px}
+.brand .mark-img{width:26px;height:26px;border-radius:50%;flex:none;object-fit:cover}
 .brand .mark{width:18px;height:18px;border-radius:6px;flex:none;
   background:linear-gradient(135deg,var(--aqua),var(--green))}
 .nav-actions{display:flex;align-items:center;gap:10px}
@@ -1247,7 +1256,7 @@ def _page(title: str, body_html: str, description: str = "", page_url: str = Non
 </style>
 <header class="nav"><div class="wrap nav-in">
 <button class="side-toggle" id="side-toggle" aria-label="Open navigation" aria-expanded="false" aria-controls="side"><span></span><span></span><span></span></button>
-<a class="brand" href="/"><span class="mark"></span>MuseFM&nbsp;Trustline</a>
+<a class="brand" href="/"><img class="mark-img" src="/static/orb-lock.png" alt="" width="26" height="26">MuseFM&nbsp;Trustline</a>
 <div class="nav-actions">
 <button class="theme-toggle" id="theme-toggle" aria-label="Switch light / dark mode">&#9681; Theme</button>
 </div>
